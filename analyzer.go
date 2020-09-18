@@ -1,9 +1,5 @@
 package main
 
-type IAnalyzer interface {
-	Analyze(string) []string
-}
-
 type Analyzer struct {
 	Tokenizer   Tokenizer
 	CharFilters []CharFilter
