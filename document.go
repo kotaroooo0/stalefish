@@ -19,12 +19,12 @@ func (b *DocumentBuilder) AddField(name, typ string) error {
 	switch typ {
 	case "string":
 		t = reflect.TypeOf("")
-	case "int":
-		t = reflect.TypeOf(1)
-	case "float":
-		t = reflect.TypeOf(0.1)
-	case "bool":
-		t = reflect.TypeOf(true)
+	// case "int":
+	// 	t = reflect.TypeOf(1)
+	// case "float":
+	// 	t = reflect.TypeOf(0.1)
+	// case "bool":
+	// 	t = reflect.TypeOf(true)
 	default:
 		return fmt.Errorf("error: invalid type")
 	}
@@ -58,6 +58,7 @@ func (d *DocumentType) New() *Document {
 }
 
 type Document struct {
+	ID     int
 	Fields reflect.Value
 }
 
@@ -77,12 +78,12 @@ func (d *Document) Set(name string, value interface{}) error {
 	switch rv.Type() {
 	case reflect.TypeOf(""):
 		rv.SetString(value.(string))
-	case reflect.TypeOf(1):
-		rv.SetInt(int64(value.(int)))
-	case reflect.TypeOf(0.1):
-		rv.SetFloat(value.(float64))
-	case reflect.TypeOf(true):
-		rv.SetBool(value.(bool))
+	// case reflect.TypeOf(1):
+	// 	rv.SetInt(int64(value.(int)))
+	// case reflect.TypeOf(0.1):
+	// 	rv.SetFloat(value.(float64))
+	// case reflect.TypeOf(true):
+	// 	rv.SetBool(value.(bool))
 	default:
 		return fmt.Errorf("error: don't match any type")
 	}
