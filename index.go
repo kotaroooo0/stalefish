@@ -3,9 +3,7 @@ package main
 // index is an inverted index. It maps tokens to document ID.
 type FieldInvertedIndex map[string][]int
 
-type Index struct {
-	FieldToInvertedIndex map[string]FieldInvertedIndex
-}
+type Index map[string]FieldInvertedIndex
 
 // add adds documents to the index.
 func (idx Index) Add(docs []Document, analyzer Analyzer) {

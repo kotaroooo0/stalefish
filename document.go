@@ -14,6 +14,7 @@ func NewDocumentBuilder() *DocumentBuilder {
 }
 
 // TODO: reflectよくわからん
+// TODO: string以外の型も対応
 func (b *DocumentBuilder) AddField(name, typ string) error {
 	var t reflect.Type
 	switch typ {
