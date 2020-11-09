@@ -1,6 +1,5 @@
 package stalefish
 
-// index is an inverted index. It maps tokens to document ID.
 type FieldInvertedIndex map[string][]int
 
 type Index map[string]FieldInvertedIndex

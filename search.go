@@ -5,7 +5,6 @@ type Searcher struct {
 	Analyzer Analyzer
 }
 
-// search queries the index for the given text.
 func (s Searcher) Search(q Query) []int {
 	var r []int
 	for _, field := range q.Fields {
@@ -26,8 +25,7 @@ func (s Searcher) Search(q Query) []int {
 	return r
 }
 
-// intersection returns the set intersection between a and b.
-// a and b have to be sorted in ascending order and contain no duplicates.
+// AND検索
 func intersection(a []int, b []int) []int {
 	maxLen := len(a)
 	if len(b) > maxLen {
