@@ -1,4 +1,4 @@
-package main
+package stalefish
 
 type Document struct {
 	ID     int

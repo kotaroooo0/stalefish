@@ -1,4 +1,4 @@
-package main
+package stalefish
 
 type Analyzer struct {
 	Tokenizer   Tokenizer

@@ -1,24 +1,17 @@
-package main
-
-import "fmt"
+package stalefish
 
 type Searcher struct {
 	Index    Index
 	Analyzer Analyzer
 }
 
-type Query struct {
-	Keyword string
-	Fields  []string
-}
-
 // search queries the index for the given text.
-func (s Searcher) Search(q Query) ([]int, error) {
+func (s Searcher) Search(q Query) []int {
 	var r []int
 	for _, field := range q.Fields {
 		invertedIndex, ok := s.Index[field]
 		if !ok {
-			return nil, fmt.Errorf("error: invalid field name")
+			continue
 		}
 		for _, token := range s.Analyzer.Analyze(q.Keyword) {
 			if ids, ok := invertedIndex[token]; ok {
@@ -30,7 +23,7 @@ func (s Searcher) Search(q Query) ([]int, error) {
 			}
 		}
 	}
-	return r, nil
+	return r
 }
 
 // intersection returns the set intersection between a and b.

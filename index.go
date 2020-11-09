@@ -1,4 +1,4 @@
-package main
+package stalefish
 
 // index is an inverted index. It maps tokens to document ID.
 type FieldInvertedIndex map[string][]int
@@ -8,7 +8,10 @@ type Index map[string]FieldInvertedIndex
 func (idx Index) Indexing(docs []Document, analyzer Analyzer) {
 	for _, doc := range docs {
 		for k, v := range doc.Fields {
-			fieldInvertedIndex := FieldInvertedIndex{}
+			fieldInvertedIndex, ok := idx[k]
+			if !ok {
+				fieldInvertedIndex = FieldInvertedIndex{}
+			}
 			for _, token := range analyzer.Analyze(v) {
 				ids := fieldInvertedIndex[token]
 				if ids != nil && ids[len(ids)-1] == doc.ID {
