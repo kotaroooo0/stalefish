@@ -1,9 +1,9 @@
 package stalefish
 
 type Analyzer struct {
-	Tokenizer   Tokenizer
-	CharFilters []CharFilter
-	Filters     []Filter
+	CharFilters  []CharFilter
+	Tokenizer    Tokenizer
+	TokenFilters []TokenFilter
 }
 
 func (a Analyzer) Analyze(s string) []string {
@@ -11,7 +11,7 @@ func (a Analyzer) Analyze(s string) []string {
 		s = c.Filter(s)
 	}
 	tokens := a.Tokenizer.Tokenize(s)
-	for _, f := range a.Filters {
+	for _, f := range a.TokenFilters {
 		tokens = f.Filter(tokens)
 	}
 	return tokens

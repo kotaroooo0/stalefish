@@ -6,7 +6,7 @@ import (
 	"github.com/kljensen/snowball/english"
 )
 
-type Filter interface {
+type TokenFilter interface {
 	Filter([]string) []string
 }
 
