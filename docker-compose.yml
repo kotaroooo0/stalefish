@@ -1,0 +1,12 @@
+version: "3.6"
+
+services:
+  rdb:
+    image: mysql:5.7
+    restart: always
+    volumes:
+      - ./db/:/docker-entrypoint-initdb.d
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: password
