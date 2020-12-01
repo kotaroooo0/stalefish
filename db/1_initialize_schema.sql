@@ -19,6 +19,12 @@ drop table if exists tokens;
 create table tokens (
     id  integer not null primary key,
     token text not null,
-    docs_count int not null,
-    postings blob not null
+);
+
+drop table if exists inverted_index;
+create table inverted_index (
+    token_id integer not null,
+    posting_list blob not null,
+    docs_count integer not null,
+    postions_count integer not null
 );
