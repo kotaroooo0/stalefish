@@ -13,32 +13,32 @@ func TestAnalyze(t *testing.T) {
 		tokens   []string
 	}{
 		{
-			analyzer: Analyzer{StandardTokenizer{}, []CharFilter{}, []Filter{}},
+			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{}},
 			text:     "",
 			tokens:   []string{},
 		},
 		{
-			analyzer: Analyzer{StandardTokenizer{}, []CharFilter{}, []Filter{}},
+			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{}},
 			text:     "a",
 			tokens:   []string{"a"},
 		},
 		{
-			analyzer: Analyzer{StandardTokenizer{}, []CharFilter{}, []Filter{}},
+			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{}},
 			text:     "small wild,cat!",
 			tokens:   []string{"small", "wild", "cat"},
 		},
 		{
-			analyzer: Analyzer{StandardTokenizer{}, []CharFilter{}, []Filter{LowercaseFilter{}}},
+			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{LowercaseFilter{}}},
 			text:     "I am BIG",
 			tokens:   []string{"i", "am", "big"},
 		},
 		{
-			analyzer: Analyzer{StandardTokenizer{}, []CharFilter{}, []Filter{StopWordFilter{}}},
+			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{StopWordFilter{}}},
 			text:     "how a Big",
 			tokens:   []string{"how", "Big"},
 		},
 		{
-			analyzer: Analyzer{StandardTokenizer{}, []CharFilter{}, []Filter{StemmerFilter{}}},
+			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{StemmerFilter{}}},
 			text:     "Long pens",
 			tokens:   []string{"long", "pen"},
 		},
