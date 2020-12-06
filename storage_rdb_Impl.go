@@ -63,14 +63,14 @@ func (s StorageRdbImpl) GetDocuments(ids []DocumentID) ([]Document, error) {
 }
 
 func (s StorageRdbImpl) AddDocument(doc Document) (DocumentID, error) {
-	res, err := s.DB.NamedExec(`insert into documents (title, body) values (:title, :body)`,
+	res, err := s.DB.NamedExec(`insert into documents (body) values (:body)`,
 		map[string]interface{}{
-			"title": doc.Title,
-			"body":  doc.Body,
+			"body": doc.Body,
 		})
 	if err != nil {
 		return -1, err
 	}
+
 	insertedID, err := res.LastInsertId()
 	if err != nil {
 		return -1, err
@@ -78,6 +78,7 @@ func (s StorageRdbImpl) AddDocument(doc Document) (DocumentID, error) {
 	return DocumentID(insertedID), err
 }
 
+// TODO: 同じトークンでもIDがインクリメントされ、IDがとびとびになる
 func (s StorageRdbImpl) AddToken(token Token) (TokenID, error) {
 	res, err := s.DB.NamedExec(`insert into tokens (term) values (:term)`,
 		map[string]interface{}{

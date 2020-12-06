@@ -5,14 +5,13 @@ use stalefish;
 drop table if exists documents;
 create table documents (
     id integer not null auto_increment primary key,
-    title text not null,
     body text not null
 );
 
 drop table if exists tokens;
 create table tokens (
     id integer not null auto_increment primary key,
-    term text not null
+    term varchar(512) not null unique
 );
 
 drop table if exists inverted_indexes;

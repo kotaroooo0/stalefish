@@ -25,26 +25,23 @@ func TestGetDocuments(t *testing.T) {
 	storage := NewStorageRdbImpl(db)
 
 	// TODO: テストデータ生成方法
-	doc1 := NewDocument("title1", "body1")
-	doc2 := NewDocument("title2", "body2")
-	doc3 := NewDocument("title3", "body3")
+	doc1 := NewDocument("title1")
+	doc2 := NewDocument("title2")
+	doc3 := NewDocument("title3")
 	storage.AddDocument(doc1)
 	storage.AddDocument(doc2)
 	storage.AddDocument(doc3)
 	expectedDoc1 := Document{
-		ID:    1,
-		Title: "title1",
-		Body:  "body1",
+		ID:   1,
+		Body: "body1",
 	}
 	expectedDoc2 := Document{
-		ID:    2,
-		Title: "title2",
-		Body:  "body2",
+		ID:   2,
+		Body: "body2",
 	}
 	expectedDoc3 := Document{
-		ID:    3,
-		Title: "title3",
-		Body:  "body3",
+		ID:   3,
+		Body: "body3",
 	}
 
 	cases := []struct {
@@ -76,7 +73,7 @@ func TestGetDocuments(t *testing.T) {
 	}
 }
 
-func TestAddDocument(t *testing.T) {
+func TestStorageAddDocument(t *testing.T) {
 	db, err := NewTestDBClient()
 	if err != nil {
 		t.Error(err)
@@ -89,19 +86,19 @@ func TestAddDocument(t *testing.T) {
 		id  DocumentID
 	}{
 		{
-			doc: NewDocument("title1", "body1"),
+			doc: NewDocument("title1"),
 			id:  1,
 		},
 		{
-			doc: NewDocument("title2", "body2"),
+			doc: NewDocument("title2"),
 			id:  2,
 		},
 		{
-			doc: NewDocument("title3", "body3"),
+			doc: NewDocument("title3"),
 			id:  3,
 		},
 		{
-			doc: NewDocument("title4", "body4"),
+			doc: NewDocument("title4"),
 			id:  4,
 		},
 	}

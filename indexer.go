@@ -13,13 +13,16 @@ type Indexer struct {
 
 func NewIndexer(storage Storage, analyzer Analyzer, invertedIndexMap InvertedIndexMap) *Indexer {
 	return &Indexer{
-		Storage:  storage,
-		Analyzer: analyzer,
+		Storage:          storage,
+		Analyzer:         analyzer,
+		InvertedIndexMap: invertedIndexMap,
 	}
 }
 
-const INDEX_SIZE_THRESHOLD = 100
+const INDEX_SIZE_THRESHOLD = 10
 
+// TODO: Goと言えばgoroutine, 並列化をしていきたい
+// TODO: AddDocumentsも作りたい
 // 1.文書からトークンを取り出す
 // 2.トークンごとにポスティングリストを作って、それをメモリ上の転置インデックスに追加する
 // 3.メモリ上の転置インデックスがある程度のサイズになったら、ストレージ上の転置インデックスにマージする
@@ -41,20 +44,24 @@ func (i *Indexer) AddDocument(doc Document) error {
 	if len(i.InvertedIndexMap) >= INDEX_SIZE_THRESHOLD {
 		for tokenID, invertedIndexValue := range i.InvertedIndexMap {
 			// マージ元の転置リストをストレージから読み出す
-			storageInvertIndexValue, err := i.Storage.GetInvertIndexByTokenID(tokenID)
+			storageInvertIndexValue, err := i.Storage.GetInvertedIndexByTokenID(tokenID)
 			if err != nil {
 				return err
 			}
 
-			// ストレージ上の転置リストとメモリの転置リストをマージする
-			merged, err := MergeInvertedIndex(invertedIndexValue, storageInvertIndexValue)
-			if err != nil {
-				return err
+			if len(storageInvertIndexValue.PostingList) == 0 { // ストレージのポスティングリストが空の時
+				// TODO: DB接続回数が減るので、ループ後にまとめて追加する方が良い
+				i.Storage.UpsertInvertedIndex(invertedIndexValue)
+			} else {
+				// ストレージ上の転置リストとメモリの転置リストをマージする
+				merged, err := MergeInvertedIndex(invertedIndexValue, storageInvertIndexValue)
+				if err != nil {
+					return err
+				}
+				// TODO: DB接続回数が減るので、ループ後にまとめて追加する方が良い
+				// マージした転置リストをストレージに永続化する
+				i.Storage.UpsertInvertedIndex(merged)
 			}
-
-			// TODO: DB接続回数が減るので、ループ後にまとめて追加する方が良い
-			// マージした転置リストをストレージに永続化する
-			i.Storage.UpsertInvertedIndex(merged)
 		}
 
 		// メモリの転置インデックスをリセット
@@ -65,13 +72,7 @@ func (i *Indexer) AddDocument(doc Document) error {
 
 // 文書からメモリ上の転置インデックスを更新する
 func (i *Indexer) UpdateMemoryInvertedIndexByDocument(doc Document) error {
-	if err := i.UpdateMemoryInvertedIndexByText(doc.ID, doc.Title); err != nil {
-		return err
-	}
-	if err := i.UpdateMemoryInvertedIndexByText(doc.ID, doc.Body); err != nil {
-		return err
-	}
-	return nil
+	return i.UpdateMemoryInvertedIndexByText(doc.ID, doc.Body)
 }
 
 // Textからメモリ上の転置インデックスを更新する
@@ -127,6 +128,7 @@ func (i *Indexer) UpdateMemoryInvertedIndexByToken(docID DocumentID, term string
 			invertedIndexValue.PostingList[targetPostingIdx].Positions = append(invertedIndexValue.PostingList[targetPostingIdx].Positions, pos)
 			invertedIndexValue.PostingList[targetPostingIdx].PositionsCount++
 			invertedIndexValue.PositionsCount++
+			i.InvertedIndexMap[token.ID] = invertedIndexValue
 		} else { // まだ対象ドキュメントのポスティングが存在しない
 			invertedIndexValue.PostingList = append(invertedIndexValue.PostingList,
 				Posting{
@@ -136,6 +138,7 @@ func (i *Indexer) UpdateMemoryInvertedIndexByToken(docID DocumentID, term string
 				})
 			invertedIndexValue.DocsCount++
 			invertedIndexValue.PositionsCount++
+			i.InvertedIndexMap[token.ID] = invertedIndexValue
 		}
 	}
 	return nil

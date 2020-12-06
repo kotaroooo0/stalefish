@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/k0kubun/pp"
 )
 
 // モック
@@ -20,6 +21,40 @@ func (s TestStorage) GetTokenByTerm(term string) (Token, error) {
 		ID:   TokenID(len(term)),
 		Term: term,
 	}, nil
+}
+
+func TestIndexerAddDocument(t *testing.T) {
+	// TODO: デバッグ用にplayground的に使う、ちゃんとしたテストも書きたい
+	db, err := NewTestDBClient()
+	if err != nil {
+		t.Error(err)
+	}
+	db.Exec("truncate table documents")
+	db.Exec("truncate table tokens")
+	db.Exec("truncate table inverted_indexes")
+
+	storage := NewStorageRdbImpl(db)
+	analyzer := NewAnalyzer([]CharFilter{}, StandardTokenizer{}, []TokenFilter{LowercaseFilter{}, StopWordFilter{}})
+	indexer := NewIndexer(storage, analyzer, make(InvertedIndexMap))
+
+	doc1 := NewDocument("aa bb cc dd aa bb")
+	err = indexer.AddDocument(doc1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	doc2 := NewDocument("ee ff gg hh ii jj kk")
+	err = indexer.AddDocument(doc2)
+	if err != nil {
+		t.Error(err)
+	}
+
+	doc3 := NewDocument("aa aa bb bb jj kk ll oo nn bb vv rr tt uu yy qq")
+	err = indexer.AddDocument(doc3)
+	if err != nil {
+		t.Error(err)
+	}
+	pp.Println(indexer.InvertedIndexMap)
 }
 
 func TestUpdateMemoryInvertedIndexByText(t *testing.T) {
