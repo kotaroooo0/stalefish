@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/k0kubun/pp"
 )
 
 // モック
@@ -54,7 +53,7 @@ func TestIndexerAddDocument(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	pp.Println(indexer.InvertedIndexMap)
+	// pp.Println(indexer.InvertedIndexMap)
 }
 
 func TestUpdateMemoryInvertedIndexByText(t *testing.T) {
@@ -95,7 +94,7 @@ func TestUpdateMemoryInvertedIndexByText(t *testing.T) {
 						},
 					},
 					DocsCount:      1,
-					PositionsCount: 1,
+					PositionsCount: 3,
 				},
 				4: InvertedIndexValue{
 					Token: Token{ID: 4, Term: "uint"},

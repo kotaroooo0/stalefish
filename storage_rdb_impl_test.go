@@ -25,9 +25,9 @@ func TestGetDocuments(t *testing.T) {
 	storage := NewStorageRdbImpl(db)
 
 	// TODO: テストデータ生成方法
-	doc1 := NewDocument("title1")
-	doc2 := NewDocument("title2")
-	doc3 := NewDocument("title3")
+	doc1 := NewDocument("body1")
+	doc2 := NewDocument("body2")
+	doc3 := NewDocument("body3")
 	storage.AddDocument(doc1)
 	storage.AddDocument(doc2)
 	storage.AddDocument(doc3)
@@ -86,19 +86,19 @@ func TestStorageAddDocument(t *testing.T) {
 		id  DocumentID
 	}{
 		{
-			doc: NewDocument("title1"),
+			doc: NewDocument("body1"),
 			id:  1,
 		},
 		{
-			doc: NewDocument("title2"),
+			doc: NewDocument("body2"),
 			id:  2,
 		},
 		{
-			doc: NewDocument("title3"),
+			doc: NewDocument("body3"),
 			id:  3,
 		},
 		{
-			doc: NewDocument("title4"),
+			doc: NewDocument("body4"),
 			id:  4,
 		},
 	}

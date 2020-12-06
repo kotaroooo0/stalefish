@@ -12,19 +12,24 @@ type MatchAllSearcher struct {
 	Storage Storage
 }
 
-func NewMatchAllSearcher() (MatchAllSearcher, error) {
-	return MatchAllSearcher{}, nil
+func NewMatchAllSearcher(storage Storage) MatchAllSearcher {
+	return MatchAllSearcher{Storage: storage}
+}
+
+func (ms MatchAllSearcher) Search() ([]Document, error) {
+	return ms.Storage.GetAllDocuments()
 }
 
 type PhraseSearcher struct {
-	Tokens  []string
+	Terms   []string
 	Storage Storage
 }
 
-func NewPhraseSearcher(tokens []string) (PhraseSearcher, error) {
+func NewPhraseSearcher(terms []string, storage Storage) PhraseSearcher {
 	return PhraseSearcher{
-		Tokens: tokens,
-	}, nil
+		Terms:   terms,
+		Storage: storage,
+	}
 }
 
 // フレーズ検索 AND
@@ -36,25 +41,40 @@ func NewPhraseSearcher(tokens []string) (PhraseSearcher, error) {
 // 6, 検索結果を適合度の降順に並べ替える
 // 7, 並び替えられた検索結果のうち、上位のものを検索結果として返す
 func (ps PhraseSearcher) Search() ([]Document, error) {
-	var invertIndexHash InvertIndexHash
-	invertedIndexValues := make(InvertedIndexValues, len(ps.Tokens))
-	for i, t := range ps.Tokens {
-		// トークンに対するポスティングリストが空ならそこで空スライスを返す
-		tokenID := ps.Storage.GetTokenID(t)
-		invertedIndexValue := ps.Storage.GetInvertIndexByTokenID(tokenID)
-		invertIndexHash[tokenID] = invertedIndexValue
+	if len(ps.Terms) == 0 {
+		return []Document{}, nil
+	}
+
+	invertedIndexValues := make(InvertedIndexValues, len(ps.Terms))
+	for i, t := range ps.Terms {
+		// ストレージからTokenIDを取得する
+		token, err := ps.Storage.GetTokenByTerm(t)
+		if err != nil {
+			return nil, err
+		}
+		// トークンがストレージに存在しなかった時、空を返す
+		if token.ID == 0 {
+			return []Document{}, nil
+		}
+
+		// ストレージから転置リストを取得する
+		invertedIndexValue, err := ps.Storage.GetInvertedIndexByTokenID(token.ID)
+		if err != nil {
+			return nil, err
+		}
+		// 転置リストがストレージに存在しなかった時、空を返す
+		if len(invertedIndexValue.PostingList) == 0 {
+			return []Document{}, nil
+		}
+
 		invertedIndexValues[i] = invertedIndexValue
 	}
 
-	// ドキュメント数が少ない順にソート
-	// sort.Sort(invertedIndexValues)
-
 	var matchedDocumentIDs []DocumentID
-
-	cursors := make([]int, len(ps.Tokens))
-	sizes := make([]int, len(ps.Tokens))
-	docIDs := make([]DocumentID, len(ps.Tokens))
-	for i := 0; i < len(ps.Tokens); i++ {
+	cursors := make([]int, len(ps.Terms))
+	sizes := make([]int, len(ps.Terms))
+	docIDs := make([]DocumentID, len(ps.Terms))
+	for i := 0; i < len(ps.Terms); i++ {
 		sizes[i] = len(invertedIndexValues[i].PostingList)
 	}
 	for {
@@ -68,10 +88,9 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 				isSameDocID = false
 			}
 		}
-
 		if isSameDocID { // カーソルが指す全てのDocIDが等しい時
 			// フレーズが等しければ結果に追加
-			if isPhraseMatch(ps.Tokens, invertedIndexValues, cursors) {
+			if isPhraseMatch(ps.Terms, invertedIndexValues, cursors) {
 				matchedDocumentIDs = append(matchedDocumentIDs, docIDs[0])
 			}
 
@@ -98,21 +117,6 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 		return nil, err
 	}
 	return docs, nil
-
-	// AND
-	// var res PostingList
-	// for i, v := range invertedIndexValues {
-	// 	if i == 0 {
-	// 		res = invertedIndexValues[i].PostingList
-	// 		continue
-	// 	}
-	// 	// resに含まれいるドキュメントがinvertedIndexValues[i].PostingListに含まれているか
-	// 	for j, r := range res {
-	// 		if !contains(v.PostingList, r.DocumentID) {
-	// 			res = remove(res, j)
-	// 		}
-	// 	}
-	// }
 }
 
 // [
@@ -122,19 +126,18 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 // ]
 // が与えられて、相対ポジションに変換してintスライス間で共通する要素があるか判定する
 func isPhraseMatch(tokens []string, invertedIndexValues InvertedIndexValues, cursors []int) bool {
-	var relativePositionsList [][]int
+	// 相対ポジションリストを作る
+	relativePositionsList := make([][]int, len(tokens))
 	for i := range tokens {
 		relativePositionsList[i] = decrementIntSlice(invertedIndexValues[i].PostingList[cursors[i]].Positions, i)
 	}
 
-	for _, sourceRelativePosition := range relativePositionsList[0] {
-		for _, targetRelativePositions := range relativePositionsList[1:] {
-			if !intContains(targetRelativePositions, sourceRelativePosition) {
-				return false
-			}
-		}
+	// 共通の要素が存在すればフレーズが存在するということになる
+	commonElements := relativePositionsList[0]
+	for _, relativePositions := range relativePositionsList[1:] {
+		commonElements = intCommonElement(commonElements, relativePositions)
 	}
-	return true
+	return len(commonElements) >= 1
 }
 
 // 探索終了: true
@@ -176,27 +179,14 @@ func decrementIntSlice(s []int, n int) []int {
 	return s
 }
 
-// // pからi番目の要素を削除する
-// func remove(p PostingList, i int) PostingList {
-// 	return append(p[:i], p[i+1:]...)
-// }
-
-// // pにDocumentIDが含まれているか
-// func contains(p PostingList, docID DocumentID) bool {
-// 	for _, v := range p {
-// 		if docID == v.DocumentID {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
-
-// sにnが含まれているか
-func intContains(s []int, n int) bool {
-	for _, v := range s {
-		if n == v {
-			return true
+func intCommonElement(s1 []int, s2 []int) []int {
+	ret := []int{}
+	for _, v1 := range s1 {
+		for _, v2 := range s2 {
+			if v1 == v2 {
+				ret = append(ret, v1)
+			}
 		}
 	}
-	return false
+	return ret
 }

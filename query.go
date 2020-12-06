@@ -1,7 +1,13 @@
 package stalefish
 
 type Query interface {
-	Searcher() (Searcher, error)
+	Searcher() Searcher
+}
+
+type MatchAllQuery struct{}
+
+func (q *MatchAllQuery) Searcher(storage Storage) Searcher {
+	return NewMatchAllSearcher(storage)
 }
 
 type PhraseQuery struct {
@@ -16,11 +22,7 @@ func NewPhraseQuery(phrase string, analyzer Analyzer) *PhraseQuery {
 	}
 }
 
-func (q *PhraseQuery) Searcher() (Searcher, error) {
-	tokens := q.Analyzer.Analyze(q.Phrase)
-	s, err := NewPhraseSearcher(tokens)
-	if err != nil {
-		return nil, err
-	}
-	return s, nil
+func (q *PhraseQuery) Searcher(storage Storage) Searcher {
+	terms := q.Analyzer.Analyze(q.Phrase)
+	return NewPhraseSearcher(terms, storage)
 }

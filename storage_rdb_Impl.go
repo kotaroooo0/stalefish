@@ -47,6 +47,12 @@ type DBConfig struct {
 	DB       string
 }
 
+func (s StorageRdbImpl) GetAllDocuments() ([]Document, error) {
+	var docs []Document
+	err := s.DB.Select(&docs, `select * from documents`)
+	return docs, err
+}
+
 func (s StorageRdbImpl) GetDocuments(ids []DocumentID) ([]Document, error) {
 	intDocIDs := make([]int, len(ids))
 	for i, id := range ids {
