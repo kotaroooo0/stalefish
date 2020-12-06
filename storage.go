@@ -1,0 +1,10 @@
+package stalefish
+
+type Storage interface {
+	GetDocuments([]DocumentID) ([]Document, error)               // 複数IDから複数ドキュメントを返す
+	AddDocument(Document) (DocumentID, error)                    // ドキュメントを挿入する。挿入したドキュメントのIDを返す。
+	AddToken(Token) (TokenID, error)                             // トークンを挿入する。挿入したトークンのIDを返す。
+	GetTokenByTerm(string) (Token, error)                        // 語句からトークンを取得する
+	GetInvertIndexByTokenID(TokenID) (InvertedIndexValue, error) // トークンIDから転置リストを取得する
+	UpsertInvertedIndex(InvertedIndexValue) error                // 転置リストを更新する
+}
