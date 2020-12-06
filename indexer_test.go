@@ -6,26 +6,34 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+// モック
 type TestStorage struct {
 	Storage
 }
 
-func (s TestStorage) GetTokenID(token string) TokenID {
-	return TokenID(len(token))
+func (s TestStorage) AddToken(token Token) (TokenID, error) {
+	return TokenID(0), nil
 }
-func TestTextToPostingList(t *testing.T) {
+
+func (s TestStorage) GetTokenByTerm(term string) (Token, error) {
+	return Token{
+		ID:   TokenID(len(term)),
+		Term: term,
+	}, nil
+}
+
+func TestUpdateMemoryInvertedIndexByText(t *testing.T) {
 	cases := []struct {
 		docID  DocumentID
 		text   string
-		output InvertIndexHash
+		output InvertedIndexMap
 	}{
 		{
 			docID: 1,
 			text:  "int string uint string string",
-			output: InvertIndexHash{
+			output: InvertedIndexMap{
 				3: InvertedIndexValue{
-					TokenID: 3,
-					Token:   "int",
+					Token: Token{ID: 3, Term: "int"},
 					PostingList: PostingList{
 						Posting{
 							DocumentID: 1,
@@ -39,8 +47,7 @@ func TestTextToPostingList(t *testing.T) {
 					PositionsCount: 1,
 				},
 				6: InvertedIndexValue{
-					TokenID: 6,
-					Token:   "string",
+					Token: Token{ID: 6, Term: "string"},
 					PostingList: PostingList{
 						Posting{
 							DocumentID: 1,
@@ -56,8 +63,7 @@ func TestTextToPostingList(t *testing.T) {
 					PositionsCount: 1,
 				},
 				4: InvertedIndexValue{
-					TokenID: 4,
-					Token:   "uint",
+					Token: Token{ID: 4, Term: "uint"},
 					PostingList: PostingList{
 						Posting{
 							DocumentID: 1,
@@ -76,33 +82,32 @@ func TestTextToPostingList(t *testing.T) {
 
 	for _, tt := range cases {
 		indexer := Indexer{
-			Storage:         TestStorage{},
-			Analyzer:        Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{}},
-			InvertIndexHash: InvertIndexHash{},
+			Storage:          TestStorage{},
+			Analyzer:         Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{}},
+			InvertedIndexMap: InvertedIndexMap{},
 		}
-		indexer.textToPostingLists(tt.docID, tt.text)
-		// pp.Println(indexer.InvertIndexHash)
-		if diff := cmp.Diff(indexer.InvertIndexHash, tt.output); diff != "" {
+		indexer.UpdateMemoryInvertedIndexByText(tt.docID, tt.text)
+		// pp.Println(indexer.InvertedIndexMap)
+		if diff := cmp.Diff(indexer.InvertedIndexMap, tt.output); diff != "" {
 			t.Errorf("Diff: (-got +want)\n%s", diff)
 		}
 	}
 }
 
-func TestTokenToPostingList(t *testing.T) {
+func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 	cases := []struct {
 		docID  DocumentID
 		token  string
 		pos    int
-		output InvertIndexHash
+		output InvertedIndexMap
 	}{
 		{
 			docID: 1,
 			token: "abc",
 			pos:   1,
-			output: InvertIndexHash{
+			output: InvertedIndexMap{
 				3: InvertedIndexValue{
-					TokenID: 3,
-					Token:   "abc",
+					Token: Token{ID: 3, Term: "abc"},
 					PostingList: PostingList{
 						Posting{
 							DocumentID: 1,
@@ -121,10 +126,9 @@ func TestTokenToPostingList(t *testing.T) {
 			docID: 1,
 			token: "abcd",
 			pos:   2,
-			output: InvertIndexHash{
+			output: InvertedIndexMap{
 				4: InvertedIndexValue{
-					TokenID: 4,
-					Token:   "abcd",
+					Token: Token{ID: 4, Term: "abcd"},
 					PostingList: PostingList{
 						Posting{
 							DocumentID: 1,
@@ -143,13 +147,13 @@ func TestTokenToPostingList(t *testing.T) {
 
 	for _, tt := range cases {
 		indexer := Indexer{
-			Storage:         TestStorage{},
-			Analyzer:        Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{}},
-			InvertIndexHash: InvertIndexHash{},
+			Storage:          TestStorage{},
+			Analyzer:         Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{}},
+			InvertedIndexMap: InvertedIndexMap{},
 		}
-		indexer.tokenToPostingList(tt.docID, tt.token, tt.pos)
-		// pp.Println(indexer.InvertIndexHash)
-		if diff := cmp.Diff(indexer.InvertIndexHash, tt.output); diff != "" {
+		indexer.UpdateMemoryInvertedIndexByToken(tt.docID, tt.token, tt.pos)
+		// pp.Println(indexer.InvertedIndexMap)
+		if diff := cmp.Diff(indexer.InvertedIndexMap, tt.output); diff != "" {
 			t.Errorf("Diff: (-got +want)\n%s", diff)
 		}
 	}
@@ -163,8 +167,7 @@ func TestMergeInvertedIndex(t *testing.T) {
 	}{
 		{
 			memoryInvertedIndex: InvertedIndexValue{
-				TokenID: 3,
-				Token:   "int",
+				Token: Token{ID: 3, Term: "int"},
 				PostingList: PostingList{
 					Posting{
 						DocumentID: 1,
@@ -192,8 +195,7 @@ func TestMergeInvertedIndex(t *testing.T) {
 				PositionsCount: 3,
 			},
 			storageInvertedIndex: InvertedIndexValue{
-				TokenID: 3,
-				Token:   "int",
+				Token: Token{ID: 3, Term: "int"},
 				PostingList: PostingList{
 					Posting{
 						DocumentID: 2,
@@ -221,8 +223,7 @@ func TestMergeInvertedIndex(t *testing.T) {
 				PositionsCount: 4,
 			},
 			output: InvertedIndexValue{
-				TokenID: 3,
-				Token:   "int",
+				Token: Token{ID: 3, Term: "int"},
 				PostingList: PostingList{
 					Posting{
 						DocumentID: 1,
@@ -268,7 +269,7 @@ func TestMergeInvertedIndex(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		merged, err := mergeInvertedIndex(tt.memoryInvertedIndex, tt.storageInvertedIndex)
+		merged, err := MergeInvertedIndex(tt.memoryInvertedIndex, tt.storageInvertedIndex)
 		if err != nil {
 			t.Error("error: merge failed")
 		}
