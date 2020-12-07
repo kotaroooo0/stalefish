@@ -21,3 +21,11 @@ create table inverted_indexes (
     docs_count integer not null,
     positions_count integer not null
 );
+
+drop table if exists compressed_inverted_indexes;
+create table inverted_indexes (
+    token_id integer not null primary key,
+    posting_list blob not null,
+    docs_count integer not null,
+    positions_count integer not null
+);
