@@ -26,10 +26,8 @@ jobs:
       uses: actions/checkout@v2
     
     - name: Setup MySQL
-      uses: mirromutth/mysql-action@v1.1
-      with:
-        mysql version: 5.7
-        mysql root password: password
+      run: docker-compose up
+
     - name: Initial database scheme
       run: mysql -uroot -ppassword < db/1_initialize_schema.sql
 
