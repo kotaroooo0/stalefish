@@ -41,7 +41,9 @@ jobs:
         sudo /etc/init.d/mysql start
 
     - name: Initial database scheme
-      run: mysql -uroot -ppassword < db/1_initialize_schema.sql
+      run: |
+        mysqladmin -u root password 'password'
+        mysql -uroot -ppassword < db/1_initialize_schema.sql
 
     - name: Get dependencies
       run: go get -v -d
