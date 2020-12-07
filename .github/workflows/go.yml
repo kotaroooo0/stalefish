@@ -32,8 +32,8 @@ jobs:
 
     - name: Setup MySQL
       uses: mirromutth/mysql-action@v1.1
-      mysql version: '5.7'
-      mysql root password: 'password'
+        mysql version: '5.7'
+        mysql root password: 'password'
 
     - name: Initial database scheme
       run: mysql -uroot -ppassword < db/1_initialize_schema.sql
