@@ -67,14 +67,14 @@ func main() {
 
 ## Development Task
 
-- [] Refactoring
-- [] Implementing MatchQuery
-- [] Scoring with TF/IDF
-- [] Sorting
-- [] Setting document fields
-- [] Replacing MySQL with another DB
-- [] Preformance Tuning
-- [] Implementing tokenizer(Japanese morphological analysis, Ngram)
+- [ ] Refactoring
+- [ ] Implementing MatchQuery
+- [ ] Scoring with TF/IDF
+- [ ] Sorting
+- [ ] Setting document fields
+- [ ] Replacing MySQL with another DB
+- [ ] Preformance Tuning
+- [ ] Implementing tokenizer(Japanese morphological analysis, Ngram)
 
 ## Author
 
