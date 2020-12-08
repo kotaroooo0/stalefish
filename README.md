@@ -9,7 +9,6 @@ Document has only one field.
 
 ## Specification
 
--
 - Indexing Documents
 - Search by MatchAllQuery
 - Search by PhraseQuery
