@@ -66,7 +66,8 @@ func main() {
 
 ## Development Task
 
-- [ ] Refactoring
+- [ ] Using linked list as posting list
+- [ ] Compressing storage inverted indexes
 - [ ] Implementing MatchQuery
 - [ ] Scoring with TF/IDF
 - [ ] Sorting
