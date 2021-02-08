@@ -9,6 +9,7 @@ type TokenID int
 type Token struct {
 	ID   TokenID `db:"id"`
 	Term string  `db:"term"`
+	Kana string  `db:"kana"`
 }
 
 func NewToken(term string) Token {
