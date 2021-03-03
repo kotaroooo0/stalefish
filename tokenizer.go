@@ -4,6 +4,7 @@ import (
 	"strings"
 	"unicode"
 
+	ipaneologd "github.com/ikawaha/kagome-dict-ipa-neologd"
 	"github.com/ikawaha/kagome/v2/tokenizer"
 )
 
@@ -19,13 +20,13 @@ func (t StandardTokenizer) Tokenize(s string) *TokenStream {
 	})
 	tokens := make([]Token, 0)
 	for _, term := range terms {
-		tokens = append(tokens, NewToken(term, ""))
+		tokens = append(tokens, NewToken(term))
 	}
-	return NewTokenStream(tokens)
+	return NewTokenStream(tokens, Term)
 }
 
 type MorphologicalTokenizer struct {
-	Kagome tokenizer.Tokenizer
+	Kagome *tokenizer.Tokenizer
 	Mode   tokenizer.TokenizeMode
 }
 
@@ -41,14 +42,18 @@ func (t MorphologicalTokenizer) Tokenize(s string) *TokenStream {
 		if len(features) >= 8 {
 			kana = features[7]
 		}
-		tokens = append(tokens, NewToken(token.Surface, kana))
+		tokens = append(tokens, NewToken(token.Surface, SetKana(kana)))
 	}
-	return NewTokenStream(tokens)
+	return NewTokenStream(tokens, Term)
 }
 
-func NewMorphologicalTokenizer(kagome tokenizer.Tokenizer, mode tokenizer.TokenizeMode) *MorphologicalTokenizer {
+func NewMorphologicalTokenizer(kagome *tokenizer.Tokenizer, mode tokenizer.TokenizeMode) *MorphologicalTokenizer {
 	return &MorphologicalTokenizer{
 		Kagome: kagome,
 		Mode:   mode,
 	}
+}
+
+func NewKagome() (*tokenizer.Tokenizer, error) {
+	return tokenizer.New(ipaneologd.Dict(), tokenizer.OmitBosEos())
 }

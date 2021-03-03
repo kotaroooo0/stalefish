@@ -78,7 +78,7 @@ func (i *Indexer) UpdateMemoryInvertedIndexByDocument(doc Document) error {
 // Textからメモリ上の転置インデックスを更新する
 func (i *Indexer) UpdateMemoryInvertedIndexByText(docID DocumentID, text string) error {
 	tokens := i.Analyzer.Analyze(text)
-	for pos, token := range tokens {
+	for pos, token := range tokens.Tokens {
 		if err := i.UpdateMemoryInvertedIndexByToken(docID, token, pos); err != nil {
 			return err
 		}
@@ -87,11 +87,11 @@ func (i *Indexer) UpdateMemoryInvertedIndexByText(docID DocumentID, text string)
 }
 
 // トークンからメモリ上の転置インデックスを更新する
-func (i *Indexer) UpdateMemoryInvertedIndexByToken(docID DocumentID, term string, pos int) error {
+func (i *Indexer) UpdateMemoryInvertedIndexByToken(docID DocumentID, term Token, pos int) error {
 	// ストレージにIDの管理を任せる
-	i.Storage.AddToken(NewToken(term))
+	i.Storage.AddToken(NewToken(term.Term))
 
-	token, err := i.Storage.GetTokenByTerm(term)
+	token, err := i.Storage.GetTokenByTerm(term.Term)
 	if err != nil {
 		return err
 	}

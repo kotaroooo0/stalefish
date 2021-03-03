@@ -131,13 +131,13 @@ func TestUpdateMemoryInvertedIndexByText(t *testing.T) {
 func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 	cases := []struct {
 		docID  DocumentID
-		token  string
+		token  Token
 		pos    int
 		output InvertedIndexMap
 	}{
 		{
 			docID: 1,
-			token: "abc",
+			token: NewToken("abc"),
 			pos:   1,
 			output: InvertedIndexMap{
 				3: InvertedIndexValue{
@@ -158,7 +158,7 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 		},
 		{
 			docID: 1,
-			token: "abcd",
+			token: NewToken("abcd"),
 			pos:   2,
 			output: InvertedIndexMap{
 				4: InvertedIndexValue{

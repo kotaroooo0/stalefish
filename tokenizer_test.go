@@ -4,16 +4,15 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	ipaneologd "github.com/ikawaha/kagome-dict-ipa-neologd"
 	"github.com/ikawaha/kagome/v2/tokenizer"
 )
 
 func TestMorphologicalTokenizerTokenize(t *testing.T) {
-	kagome, err := tokenizer.New(ipaneologd.Dict(), tokenizer.OmitBosEos())
+	kagome, err := NewKagome()
 	if err != nil {
 		t.Error("error: fail to initialize kagome tokenizer")
 	}
-	tok := NewMorphologicalTokenizer(*kagome, tokenizer.Search)
+	tok := NewMorphologicalTokenizer(kagome, tokenizer.Search)
 	cases := []struct {
 		sentence string
 		expected *TokenStream
@@ -21,57 +20,57 @@ func TestMorphologicalTokenizerTokenize(t *testing.T) {
 		{
 			sentence: "Ishiuchi Maruyama",
 			expected: NewTokenStream([]Token{
-				NewToken("Ishiuchi", "Ishiuchi"),
-				NewToken("Maruyama", "Maruyama"),
-			}),
+				NewToken("Ishiuchi", SetRomaji("Ishiuchi")),
+				NewToken("Maruyama", SetRomaji("Maruyama")),
+			}, Term),
 		},
 		{
 			sentence: "石打丸山スキー場",
 			expected: NewTokenStream([]Token{
-				NewToken("石打丸山スキー場", "イシウチマルヤマスキージョウ"),
-			}),
+				NewToken("石打丸山スキー場", SetKana("イシウチマルヤマスキージョウ")),
+			}, Term),
 		},
 		{
 			sentence: "石打丸山",
 			expected: NewTokenStream([]Token{
-				NewToken("石打丸山", "イシウチマルヤマ"),
-			}),
+				NewToken("石打丸山", SetKana("イシウチマルヤマ")),
+			}, Term),
 		},
 		{
 			sentence: "いしうちまるやま",
 			expected: NewTokenStream([]Token{
-				NewToken("い", "イ"),
-				NewToken("し", "シ"),
-				NewToken("うち", "ウチ"),
-				NewToken("まるや", "マルヤ"),
-				NewToken("ま", "マ"),
-			}),
+				NewToken("い", SetKana("イ")),
+				NewToken("し", SetKana("シ")),
+				NewToken("うち", SetKana("ウチ")),
+				NewToken("まるや", SetKana("マルヤ")),
+				NewToken("ま", SetKana("マ")),
+			}, Term),
 		},
 		{
 			sentence: "イシウチ",
 			expected: NewTokenStream([]Token{
-				NewToken("イシウチ", "イシウチ"),
-			}),
+				NewToken("イシウチ", SetKana("イシウチ")),
+			}, Term),
 		},
 		{
 			sentence: "白馬",
 			expected: NewTokenStream([]Token{
-				NewToken("白馬", "ハクバ"),
-			}),
+				NewToken("白馬", SetKana("ハクバ")),
+			}, Term),
 		},
 		{
 			sentence: "白馬47",
 			expected: NewTokenStream([]Token{
-				NewToken("白馬", "ハクバ"),
-				NewToken("47", "47"),
-			}),
+				NewToken("白馬", SetKana("ハクバ")),
+				NewToken("47", SetKana("47")),
+			}, Term),
 		},
 		{
 			sentence: "琵琶湖バレイ",
 			expected: NewTokenStream([]Token{
-				NewToken("琵琶湖", "ビワコ"),
-				NewToken("バレイ", "バレイ"),
-			}),
+				NewToken("琵琶湖", SetKana("ビワコ")),
+				NewToken("バレイ", SetKana("バレイ")),
+			}, Term),
 		},
 	}
 
