@@ -3,7 +3,6 @@ package stalefish
 import (
 	"strings"
 
-	"github.com/k0kubun/pp"
 	"github.com/kljensen/snowball/english"
 	"github.com/kotaroooo0/gojaconv/jaconv"
 )
@@ -68,7 +67,6 @@ func (f ReadingformFilter) Filter(tokenStream *TokenStream) *TokenStream {
 			token.Romaji = jaconv.ToHebon(jaconv.KatakanaToHiragana(token.Kana))
 			tokenStream.Tokens[i] = token
 		}
-		pp.Println(tokenStream)
 		return tokenStream
 	}
 

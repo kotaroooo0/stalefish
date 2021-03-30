@@ -20,8 +20,8 @@ func TestMorphologicalTokenizerTokenize(t *testing.T) {
 		{
 			sentence: "Ishiuchi Maruyama",
 			expected: NewTokenStream([]Token{
-				NewToken("Ishiuchi", SetRomaji("Ishiuchi")),
-				NewToken("Maruyama", SetRomaji("Maruyama")),
+				NewToken("Ishiuchi", SetKana("Ishiuchi")),
+				NewToken("Maruyama", SetKana("Maruyama")),
 			}, Term),
 		},
 		{
