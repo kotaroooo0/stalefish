@@ -21,14 +21,14 @@ func (ms MatchAllSearcher) Search() ([]Document, error) {
 }
 
 type PhraseSearcher struct {
-	Terms   []string
-	Storage Storage
+	TokenStream *TokenStream
+	Storage     Storage
 }
 
-func NewPhraseSearcher(terms []string, storage Storage) PhraseSearcher {
+func NewPhraseSearcher(tokenStream *TokenStream, storage Storage) PhraseSearcher {
 	return PhraseSearcher{
-		Terms:   terms,
-		Storage: storage,
+		TokenStream: tokenStream,
+		Storage:     storage,
 	}
 }
 
@@ -41,14 +41,14 @@ func NewPhraseSearcher(terms []string, storage Storage) PhraseSearcher {
 // 6, 検索結果を適合度の降順に並べ替える
 // 7, 並び替えられた検索結果のうち、上位のものを検索結果として返す
 func (ps PhraseSearcher) Search() ([]Document, error) {
-	if len(ps.Terms) == 0 {
+	if ps.TokenStream.size() == 0 {
 		return []Document{}, nil
 	}
 
-	invertedIndexValues := make(InvertedIndexValues, len(ps.Terms))
-	for i, t := range ps.Terms {
+	invertedIndexValues := make(InvertedIndexValues, ps.TokenStream.size())
+	for i, t := range ps.TokenStream.Tokens {
 		// ストレージからTokenIDを取得する
-		token, err := ps.Storage.GetTokenByTerm(t)
+		token, err := ps.Storage.GetTokenByTerm(t.Term)
 		if err != nil {
 			return nil, err
 		}
@@ -71,10 +71,10 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 	}
 
 	var matchedDocumentIDs []DocumentID
-	cursors := make([]int, len(ps.Terms))
-	sizes := make([]int, len(ps.Terms))
-	docIDs := make([]DocumentID, len(ps.Terms))
-	for i := 0; i < len(ps.Terms); i++ {
+	cursors := make([]int, ps.TokenStream.size())
+	sizes := make([]int, ps.TokenStream.size())
+	docIDs := make([]DocumentID, ps.TokenStream.size())
+	for i := 0; i < ps.TokenStream.size(); i++ {
 		sizes[i] = len(invertedIndexValues[i].PostingList)
 	}
 	for {
@@ -90,7 +90,7 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 		}
 		if isSameDocID { // カーソルが指す全てのDocIDが等しい時
 			// フレーズが等しければ結果に追加
-			if isPhraseMatch(ps.Terms, invertedIndexValues, cursors) {
+			if isPhraseMatch(ps.TokenStream, invertedIndexValues, cursors) {
 				matchedDocumentIDs = append(matchedDocumentIDs, docIDs[0])
 			}
 
@@ -125,10 +125,10 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 //	[7],
 // ]
 // が与えられて、相対ポジションに変換してintスライス間で共通する要素があるか判定する
-func isPhraseMatch(tokens []string, invertedIndexValues InvertedIndexValues, cursors []int) bool {
+func isPhraseMatch(tokenStream *TokenStream, invertedIndexValues InvertedIndexValues, cursors []int) bool {
 	// 相対ポジションリストを作る
-	relativePositionsList := make([][]int, len(tokens))
-	for i := range tokens {
+	relativePositionsList := make([][]int, tokenStream.size())
+	for i := range tokenStream.Tokens {
 		relativePositionsList[i] = decrementIntSlice(invertedIndexValues[i].PostingList[cursors[i]].Positions, i)
 	}
 

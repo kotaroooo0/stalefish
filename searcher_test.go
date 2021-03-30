@@ -83,27 +83,47 @@ func TestPhraseSearch(t *testing.T) {
 	doc3.ID = 3
 
 	cases := []struct {
-		terms        []string
+		terms        *TokenStream
 		expectedDocs []Document
 	}{
 		{
-			terms:        []string{"aa", "bb"},
+			terms: NewTokenStream(
+				[]Token{
+					NewToken("aa"),
+					NewToken("bb"),
+				},
+				Term,
+			),
 			expectedDocs: []Document{doc1, doc3},
 		},
 		{
-			terms:        []string{"tt", "uu"},
+			terms: NewTokenStream(
+				[]Token{
+					NewToken("tt"),
+					NewToken("uu"),
+				},
+				Term,
+			),
 			expectedDocs: []Document{doc3},
 		},
 		{
-			terms:        []string{"aa"},
-			expectedDocs: []Document{doc1, doc3},
+			terms: NewTokenStream(
+				[]Token{
+					NewToken("aa"),
+				},
+				Term,
+			), expectedDocs: []Document{doc1, doc3},
 		},
 		{
-			terms:        []string{"ff"},
-			expectedDocs: []Document{doc2},
+			terms: NewTokenStream(
+				[]Token{
+					NewToken("ff"),
+				},
+				Term,
+			), expectedDocs: []Document{doc2},
 		},
 		{
-			terms:        []string{},
+			terms:        NewTokenStream([]Token{}, Term),
 			expectedDocs: []Document{},
 		},
 	}
