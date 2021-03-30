@@ -6,15 +6,57 @@ type InvertedIndexMap map[TokenID]InvertedIndexValue
 
 type TokenID int
 
+type Kind int
+
+const (
+	Term   Kind = iota // トークンのオリジナル
+	Kana               // トークンのカナ
+	Romaji             // トークンのローマ字
+)
+
 type Token struct {
-	ID   TokenID `db:"id"`
-	Term string  `db:"term"`
+	ID     TokenID `db:"id"`
+	Term   string  `db:"term"`
+	Kana   string  `db:"kana"`
+	Romaji string  `db:"romaji"`
 }
 
-func NewToken(term string) Token {
-	return Token{
-		Term: term,
+type TokenOption func(*Token)
+
+func NewToken(term string, options ...TokenOption) Token {
+	token := Token{Term: term}
+	for _, option := range options {
+		option(&token)
 	}
+	return token
+}
+
+func SetKana(kana string) TokenOption {
+	return func(s *Token) {
+		s.Kana = kana
+	}
+}
+
+func SetRomaji(romaji string) TokenOption {
+	return func(s *Token) {
+		s.Romaji = romaji
+	}
+}
+
+type TokenStream struct {
+	Tokens   []Token
+	Selected Kind
+}
+
+func NewTokenStream(tokens []Token, selected Kind) *TokenStream {
+	return &TokenStream{
+		Tokens:   tokens,
+		Selected: selected,
+	}
+}
+
+func (ts *TokenStream) size() int {
+	return len(ts.Tokens)
 }
 
 // 転置リスト

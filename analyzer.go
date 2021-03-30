@@ -14,13 +14,13 @@ func NewAnalyzer(charFilters []CharFilter, tokenizer Tokenizer, tokenFilters []T
 	}
 }
 
-func (a Analyzer) Analyze(s string) []string {
+func (a Analyzer) Analyze(s string) *TokenStream {
 	for _, c := range a.CharFilters {
 		s = c.Filter(s)
 	}
-	tokens := a.Tokenizer.Tokenize(s)
+	tokenStream := a.Tokenizer.Tokenize(s)
 	for _, f := range a.TokenFilters {
-		tokens = f.Filter(tokens)
+		tokenStream = f.Filter(tokenStream)
 	}
-	return tokens
+	return tokenStream
 }
