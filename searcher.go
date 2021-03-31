@@ -4,6 +4,13 @@ import (
 	"fmt"
 )
 
+type Logic int
+
+const (
+	AND Logic = iota
+	OR
+)
+
 type Searcher interface {
 	Search() ([]Document, error)
 }
@@ -18,6 +25,84 @@ func NewMatchAllSearcher(storage Storage) MatchAllSearcher {
 
 func (ms MatchAllSearcher) Search() ([]Document, error) {
 	return ms.Storage.GetAllDocuments()
+}
+
+type MatchSearcher struct {
+	TokenStream *TokenStream
+	Logic       Logic
+	Storage     Storage
+}
+
+func NewMatchSearcher(tokenStream *TokenStream, logic Logic, storage Storage) MatchSearcher {
+	return MatchSearcher{
+		TokenStream: tokenStream,
+		Logic:       logic,
+		Storage:     storage,
+	}
+}
+
+func (ms MatchSearcher) Search() ([]Document, error) {
+	if ms.TokenStream.size() == 0 {
+		return []Document{}, nil
+	}
+	invertedIndexValues := make(InvertedIndexValues, ms.TokenStream.size())
+	for i, t := range ms.TokenStream.Tokens {
+		token, err := ms.Storage.GetTokenByTerm(t.Term)
+		if err != nil {
+			return nil, err
+		}
+		// ストレージから転置リストを取得する
+		invertedIndexValue, err := ms.Storage.GetInvertedIndexByTokenID(token.ID)
+		if err != nil {
+			return nil, err
+		}
+		invertedIndexValues[i] = invertedIndexValue
+	}
+	var matchedDocumentIDs []DocumentID
+	var checked map[DocumentID]struct{}
+	if ms.Logic == AND {
+		for _, p := range invertedIndexValues[0].PostingList {
+			flag := true
+			for i := 1; i < ms.TokenStream.size(); i++ {
+				docIDs := make([]DocumentID, len(invertedIndexValues[i].PostingList))
+				for _, pos := range invertedIndexValues[i].PostingList {
+					docIDs = append(docIDs, pos.DocumentID)
+				}
+				if !contains(docIDs, p.DocumentID) {
+					flag = false
+					break
+				}
+			}
+			if flag {
+				matchedDocumentIDs = append(matchedDocumentIDs, p.DocumentID)
+			}
+		}
+	} else if ms.Logic == OR {
+		for i := range ms.TokenStream.Tokens {
+			for _, p := range invertedIndexValues[i].PostingList {
+				docID := p.DocumentID
+				_, ok := checked[docID]
+				if !ok {
+					matchedDocumentIDs = append(matchedDocumentIDs, docID)
+					checked[docID] = struct{}{}
+				}
+			}
+		}
+	}
+	docs, err := ms.Storage.GetDocuments(matchedDocumentIDs)
+	if err != nil {
+		return nil, err
+	}
+	return docs, nil
+}
+
+func contains(s []DocumentID, e DocumentID) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
 
 type PhraseSearcher struct {

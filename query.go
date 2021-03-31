@@ -1,13 +1,32 @@
 package stalefish
 
-type Query interface {
-	Searcher() Searcher
-}
-
 type MatchAllQuery struct{}
+
+func NewMatchAllQuery() *MatchAllQuery {
+	return &MatchAllQuery{}
+}
 
 func (q *MatchAllQuery) Searcher(storage Storage) Searcher {
 	return NewMatchAllSearcher(storage)
+}
+
+type MatchQuery struct {
+	Text     string
+	Logic    Logic
+	Analyzer Analyzer
+}
+
+func NewMatchQuery(text string, analyzer Analyzer) *MatchQuery {
+	return &MatchQuery{
+		Text:     text,
+		Analyzer: analyzer,
+	}
+}
+
+func (q *MatchQuery) Searcher(storage Storage) Searcher {
+	tokenStream := q.Analyzer.Analyze(q.Text)
+	return NewMatchSearcher(tokenStream, q.Logic, storage)
+
 }
 
 type PhraseQuery struct {
