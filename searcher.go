@@ -59,7 +59,7 @@ func (ms MatchSearcher) Search() ([]Document, error) {
 		invertedIndexValues[i] = invertedIndexValue
 	}
 	var matchedDocumentIDs []DocumentID
-	var checked map[DocumentID]struct{}
+	checked := make(map[DocumentID]struct{})
 	if ms.Logic == AND {
 		for _, p := range invertedIndexValues[0].PostingList {
 			flag := true
