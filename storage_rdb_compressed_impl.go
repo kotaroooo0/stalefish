@@ -18,12 +18,12 @@ func NewStorageRdbCompressedImpl(db *sqlx.DB) StorageRdbCompressedImpl {
 	}
 }
 
-func (s StorageRdbImpl) UpsertInvertedIndex(invertedIndexValue InvertedIndexValue) error {
+func (s StorageRdbCompressedImpl) UpsertInvertedIndex(invertedIndexValue InvertedIndexValue) error {
 	// TODO: 実装
 	return nil
 }
 
-func (s StorageRdbImpl) GetInvertedIndexByTokenID(tokenID TokenID) (InvertedIndexValue, error) {
+func (s StorageRdbCompressedImpl) GetInvertedIndexByTokenID(tokenID TokenID) (InvertedIndexValue, error) {
 	// TODO: 実装
 	return InvertedIndexValue{}, nil
 }
