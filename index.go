@@ -61,20 +61,33 @@ func (ts *TokenStream) size() int {
 
 // 転置リスト
 type InvertedIndexValue struct {
-	Token          Token       `db:"token"`
-	PostingList    PostingList `db:"posting_list"`    // トークンを含むポスティングスリスト
-	DocsCount      int         `db:"docs_count"`      // トークンを含む文書数
-	PositionsCount int         `db:"positions_count"` // 全文書内でのトークンの出現数
+	Token          Token     `db:"token"`
+	PostingList    *postings `db:"posting_list"`    // トークンを含むポスティングスリスト
+	DocsCount      int       `db:"docs_count"`      // トークンを含む文書数
+	PositionsCount int       `db:"positions_count"` // 全文書内でのトークンの出現数
 }
 
 // 転置リストのスライス
 type InvertedIndexValues []InvertedIndexValue
 
 // ポスティングリスト。文書IDのリンクリスト
-type PostingList []Posting
+type postings struct {
+	documentId     DocumentID // 文書のID
+	positions      []int      // 文書中の位置情報
+	positionsCount int        // 文書中の位置情報の数
+	next           *postings
+}
 
-type Posting struct {
-	DocumentID     DocumentID // 文書のID
-	Positions      []int      // 文書中の位置情報
-	PositionsCount int        // 文書中の位置情報の数
+func newPostings(documentId DocumentID, positions []int, positionsCount int, next *postings) *postings {
+	return &postings{
+		documentId:     documentId,
+		positions:      positions,
+		positionsCount: positionsCount,
+		next:           next,
+	}
+}
+
+func (p *postings) push(e *postings) {
+	e.next = p.next
+	p.next = e
 }
