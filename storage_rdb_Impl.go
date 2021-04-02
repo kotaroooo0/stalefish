@@ -117,7 +117,7 @@ func (s StorageRdbImpl) GetTokenByTerm(term string) (Token, error) {
 }
 
 func (s StorageRdbImpl) UpsertInvertedIndex(invertedIndexValue InvertedIndexValue) error {
-	positingListJSON, err := json.Marshal(invertedIndexValue.PostingList)
+	postingsJson, err := postingsToJson(invertedIndexValue.PostingList)
 	if err != nil {
 		return err
 	}
@@ -127,20 +127,18 @@ func (s StorageRdbImpl) UpsertInvertedIndex(invertedIndexValue InvertedIndexValu
 		on duplicate key update posting_list = :posting_list,docs_count = :docs_count,positions_count = :positions_count`,
 		map[string]interface{}{
 			"token_id":        invertedIndexValue.Token.ID,
-			"posting_list":    positingListJSON,
+			"posting_list":    postingsJson,
 			"docs_count":      invertedIndexValue.DocsCount,
 			"positions_count": invertedIndexValue.PositionsCount,
-		})
-	if err != nil {
-		return err
-	}
-	return nil
+		},
+	)
+	return err
 }
 
 func (s StorageRdbImpl) GetInvertedIndexByTokenID(tokenID TokenID) (InvertedIndexValue, error) {
 	// TODO: LEFT JOINのがいいかも(?)
-	var invertedIndexValues []InvertedIndexValue
-	err := s.DB.Select(&invertedIndexValues,
+	var invertedIndexDtos []invertedIndexDto
+	err := s.DB.Select(&invertedIndexDtos,
 		`select
 			tokens.id as "token.id",
 			tokens.term as "token.term",
@@ -156,25 +154,65 @@ func (s StorageRdbImpl) GetInvertedIndexByTokenID(tokenID TokenID) (InvertedInde
 		return InvertedIndexValue{}, err
 	}
 
-	switch len(invertedIndexValues) {
+	switch len(invertedIndexDtos) {
 	case 0:
 		return InvertedIndexValue{}, nil
 	case 1:
-		return invertedIndexValues[0], nil
+		return dtoToInvertedIndexValue(invertedIndexDtos[0]), nil
 	default:
 		return InvertedIndexValue{}, fmt.Errorf("error: two or more hits(inconsistent match result)")
 	}
 }
 
-func (pl *PostingList) Scan(val interface{}) error {
-	switch v := val.(type) {
-	case []byte:
-		json.Unmarshal(v, &pl)
-		return nil
-	case string:
-		json.Unmarshal([]byte(v), &pl)
-		return nil
-	default:
-		return fmt.Errorf("Unsupported type: %T", v)
+func postingsToJson(p *postings) ([]byte, error) {
+	list := make([]posting, 0)
+	for p != nil {
+		list = append(list, newPosting(p.documentId, p.positions, p.positionsCount))
+		p = p.next
+	}
+	return json.Marshal(list)
+}
+
+func listToPostings(list []posting) *postings {
+	var p *postings = newPostings(list[0].documentId, list[0].positions, list[0].positionCount, nil)
+	var root *postings = p
+	for i, l := range list {
+		if i == 0 {
+			continue
+		}
+		p.next = newPostings(l.documentId, l.positions, l.positionCount, nil)
+		p = p.next
+	}
+	return root
+}
+
+func dtoToInvertedIndexValue(dto invertedIndexDto) InvertedIndexValue {
+	return InvertedIndexValue{
+		Token:          dto.token,
+		PostingList:    listToPostings(dto.postingList),
+		DocsCount:      dto.docsCount,
+		PositionsCount: dto.positionsCount,
+	}
+}
+
+// 転置リスト
+type invertedIndexDto struct {
+	token          Token     `db:"token"`
+	postingList    []posting `db:"posting_list"`    // トークンを含むポスティングスリスト
+	docsCount      int       `db:"docs_count"`      // トークンを含む文書数
+	positionsCount int       `db:"positions_count"` // 全文書内でのトークンの出現数
+}
+
+type posting struct {
+	documentId    DocumentID
+	positions     []int
+	positionCount int
+}
+
+func newPosting(documentId DocumentID, positions []int, positionCount int) posting {
+	return posting{
+		documentId:    documentId,
+		positions:     positions,
+		positionCount: positionCount,
 	}
 }

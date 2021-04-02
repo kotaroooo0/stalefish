@@ -174,19 +174,9 @@ func TestUpsertInvertedIndex(t *testing.T) {
 	db.Exec("truncate table inverted_indexes")
 	storage := NewStorageRdbImpl(db)
 
-	p1 := Posting{
-		DocumentID:     1,
-		Positions:      []int{1, 2, 3, 4},
-		PositionsCount: 4,
-	}
-	p2 := Posting{
-		DocumentID:     3,
-		Positions:      []int{11, 22},
-		PositionsCount: 2,
-	}
 	inverted := InvertedIndexValue{
 		Token:          Token{ID: 12, Term: "hoge"},
-		PostingList:    []Posting{p1, p2},
+		PostingList:    newPostings(1, []int{1, 2, 3, 4}, 4, newPostings(3, []int{11, 22}, 2, nil)),
 		DocsCount:      123,
 		PositionsCount: 11,
 	}
@@ -218,20 +208,10 @@ func TestGetInvertedIndexByTokenID(t *testing.T) {
 	db.Exec("truncate table inverted_indexes")
 	storage := NewStorageRdbImpl(db)
 
-	p1 := Posting{
-		DocumentID:     1,
-		Positions:      []int{1, 2, 3, 4},
-		PositionsCount: 4,
-	}
-	p2 := Posting{
-		DocumentID:     3,
-		Positions:      []int{11, 22},
-		PositionsCount: 2,
-	}
 	token := Token{ID: 1, Term: "hoge"}
 	inverted := InvertedIndexValue{
 		Token:          token,
-		PostingList:    []Posting{p1, p2},
+		PostingList:    newPostings(1, []int{1, 2, 3, 4}, 4, newPostings(3, []int{11, 22}, 2, nil)),
 		DocsCount:      123,
 		PositionsCount: 11,
 	}
