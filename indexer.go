@@ -2,7 +2,6 @@ package stalefish
 
 import (
 	"fmt"
-	"sort"
 )
 
 type Indexer struct {
@@ -37,9 +36,6 @@ func (i *Indexer) AddDocument(doc Document) error {
 	// 文書から転置リストを構築
 	i.UpdateMemoryInvertedIndexByDocument(doc)
 
-	// 転置リストの全てのポスティングリストをドキュメントIDの昇順でソート
-	i.SortPostingList()
-
 	// ストレージ上の転置インデックスにマージする
 	if len(i.InvertedIndexMap) >= INDEX_SIZE_THRESHOLD {
 		for tokenID, invertedIndexValue := range i.InvertedIndexMap {
@@ -49,12 +45,12 @@ func (i *Indexer) AddDocument(doc Document) error {
 				return err
 			}
 
-			if len(storageInvertIndexValue.PostingList) == 0 { // ストレージのポスティングリストが空の時
+			if storageInvertIndexValue.PostingList == nil { // ストレージのポスティングリストが空の時
 				// TODO: DB接続回数が減るので、ループ後にまとめて追加する方が良い
 				i.Storage.UpsertInvertedIndex(invertedIndexValue)
 			} else {
 				// ストレージ上の転置リストとメモリの転置リストをマージする
-				merged, err := MergeInvertedIndex(invertedIndexValue, storageInvertIndexValue)
+				merged, err := merge(invertedIndexValue, storageInvertIndexValue)
 				if err != nil {
 					return err
 				}
@@ -72,14 +68,9 @@ func (i *Indexer) AddDocument(doc Document) error {
 
 // 文書からメモリ上の転置インデックスを更新する
 func (i *Indexer) UpdateMemoryInvertedIndexByDocument(doc Document) error {
-	return i.UpdateMemoryInvertedIndexByText(doc.ID, doc.Body)
-}
-
-// Textからメモリ上の転置インデックスを更新する
-func (i *Indexer) UpdateMemoryInvertedIndexByText(docID DocumentID, text string) error {
-	tokens := i.Analyzer.Analyze(text)
+	tokens := i.Analyzer.Analyze(doc.Body)
 	for pos, token := range tokens.Tokens {
-		if err := i.UpdateMemoryInvertedIndexByToken(docID, token, pos); err != nil {
+		if err := i.UpdateMemoryInvertedIndexByToken(doc.ID, token, pos); err != nil {
 			return err
 		}
 	}
@@ -95,113 +86,106 @@ func (i *Indexer) UpdateMemoryInvertedIndexByToken(docID DocumentID, term Token,
 	if err != nil {
 		return err
 	}
+
 	invertedIndexValue, ok := i.InvertedIndexMap[token.ID]
-	if !ok {
+	if !ok { // 対応するinvertedIndexValueがない場合
 		i.InvertedIndexMap[token.ID] = InvertedIndexValue{
-			Token: token,
-			PostingList: []Posting{
-				Posting{
-					DocumentID:     docID,
-					Positions:      []int{pos},
-					PositionsCount: 1,
-				},
-			},
+			Token:          token,
+			PostingList:    newPostings(docID, []int{pos}, 1, nil),
 			DocsCount:      1,
 			PositionsCount: 1,
 		}
-	} else {
-		// TODO: メソッド化してもいいかも
-		// 対象ドキュメントのポスティングが存在するかどうか
-		// 存在するならば、そのポスティングのポスティングリスト上のインデックスを返す
-		var targetPostingIdx int
-		isExistPosting := false
-		for i := 0; i < len(invertedIndexValue.PostingList); i++ {
-			p := invertedIndexValue.PostingList[i]
-			if p.DocumentID == docID {
-				targetPostingIdx = i
-				isExistPosting = true
-				break
-			}
-		}
+		return nil
+	}
 
-		if isExistPosting { // 既に対象ドキュメントのポスティングが存在する
-			invertedIndexValue.PostingList[targetPostingIdx].Positions = append(invertedIndexValue.PostingList[targetPostingIdx].Positions, pos)
-			invertedIndexValue.PostingList[targetPostingIdx].PositionsCount++
-			invertedIndexValue.PositionsCount++
-			i.InvertedIndexMap[token.ID] = invertedIndexValue
-		} else { // まだ対象ドキュメントのポスティングが存在しない
-			invertedIndexValue.PostingList = append(invertedIndexValue.PostingList,
-				Posting{
-					DocumentID:     docID,
-					Positions:      []int{pos},
-					PositionsCount: 1,
-				})
-			invertedIndexValue.DocsCount++
-			invertedIndexValue.PositionsCount++
-			i.InvertedIndexMap[token.ID] = invertedIndexValue
+	// ドキュメントに対応するポスティングが存在するかどうか
+	// p == nilになる前にループ終了: 存在する
+	// p == nilまでループが回る: 存在しない
+	p := invertedIndexValue.PostingList
+	for p.documentId != docID && p != nil {
+		p = p.next
+	}
+
+	if p != nil { // 既に対象ドキュメントのポスティングが存在する
+		p.positions = append(p.positions, pos)
+		p.positionsCount++
+
+		invertedIndexValue.PositionsCount++
+		i.InvertedIndexMap[token.ID] = invertedIndexValue
+	} else { // まだ対象ドキュメントのポスティングが存在しない
+		// ドキュメントIDが昇順になるように挿入する場所を探索
+		t := invertedIndexValue.PostingList
+		for t.next.documentId < docID {
+			t = t.next
 		}
+		t.push(newPostings(docID, []int{pos}, 1, nil))
+
+		invertedIndexValue.DocsCount++
+		invertedIndexValue.PositionsCount++
+		i.InvertedIndexMap[token.ID] = invertedIndexValue
 	}
 	return nil
 }
 
-func (i *Indexer) SortPostingList() {
-	for _, v := range i.InvertedIndexMap {
-		sort.Slice(v.PostingList, func(i, j int) bool {
-			return v.PostingList[i].DocumentID < v.PostingList[j].DocumentID
-		})
-	}
-}
-
 // TODO: メソッドにした方がいいかも？
-func MergeInvertedIndex(memoryInvertedIndex, storageInvertIndex InvertedIndexValue) (InvertedIndexValue, error) {
+func merge(memory, storage InvertedIndexValue) (InvertedIndexValue, error) {
 	// 同じトークンに対する転置リストでなければエラーを返す
-	if memoryInvertedIndex.Token.ID != storageInvertIndex.Token.ID || memoryInvertedIndex.Token.Term != storageInvertIndex.Token.Term {
+	if memory.Token.ID != storage.Token.ID || memory.Token.Term != storage.Token.Term {
 		return InvertedIndexValue{}, fmt.Errorf("error: not match inverted index")
 	}
 
-	// 生成物
-	var merged InvertedIndexValue = InvertedIndexValue{
-		Token:          memoryInvertedIndex.Token,
-		PostingList:    PostingList{},
+	merged := InvertedIndexValue{
+		Token:          memory.Token,
+		PostingList:    nil,
 		PositionsCount: 0,
 		DocsCount:      0,
 	}
 
-	// ポスティングリストをマージする
-	memoryPostingList := memoryInvertedIndex.PostingList
-	storagePostingList := storageInvertIndex.PostingList
-	i, j := 0, 0 // i: memoryPostingListのカーソル、 j: storagePostingListのカーソル
+	var smaller, larger *postings
+	if memory.PostingList.documentId <= storage.PostingList.documentId {
+		merged.PostingList = memory.PostingList
+		smaller = memory.PostingList
+		larger = storage.PostingList
+	} else {
+		merged.PostingList = storage.PostingList
+		smaller = storage.PostingList
+		larger = memory.PostingList
+	}
+
 	for {
-		if i == len(memoryPostingList) {
-			merged.DocsCount++
-			merged.PositionsCount += storagePostingList[j].PositionsCount
-			merged.PostingList = append(merged.PostingList, storagePostingList[j])
-			j++
-		} else if j == len(storagePostingList) {
-			merged.DocsCount++
-			merged.PositionsCount += memoryPostingList[i].PositionsCount
-			merged.PostingList = append(merged.PostingList, memoryPostingList[i])
-			i++
-		} else if memoryPostingList[i].DocumentID < storagePostingList[j].DocumentID {
-			merged.DocsCount++
-			merged.PositionsCount += memoryPostingList[i].PositionsCount
-			merged.PostingList = append(merged.PostingList, memoryPostingList[i])
-			i++
-		} else if memoryPostingList[i].DocumentID > storagePostingList[j].DocumentID {
-			merged.DocsCount++
-			merged.PositionsCount += storagePostingList[j].PositionsCount
-			merged.PostingList = append(merged.PostingList, storagePostingList[j])
-			j++
-		} else if memoryPostingList[i].DocumentID == storagePostingList[j].DocumentID {
-			merged.DocsCount++
-			merged.PositionsCount += storagePostingList[j].PositionsCount
-			merged.PostingList = append(merged.PostingList, storagePostingList[j])
-			i++
-			j++
-		} else {
-			return InvertedIndexValue{}, fmt.Errorf("error: not reachable")
+		merged.DocsCount++
+
+		if smaller.next.documentId < larger.documentId {
+			smaller = smaller.next
 		}
-		if i == len(memoryPostingList) && j == len(storagePostingList) {
+
+		if smaller.next.documentId > larger.documentId {
+			larNext := larger.next
+			smaNext := smaller.next
+			smaller.next = larger
+			larger.next = smaNext
+			smaller = larger
+			larger = larNext
+		}
+
+		if smaller.next.documentId == larger.documentId {
+			smaller = smaller.next
+			larger = larger.next
+		}
+
+		if larger == nil {
+			for smaller != nil {
+				smaller = smaller.next
+				merged.DocsCount++
+			}
+			break
+		}
+		if smaller.next == nil {
+			smaller.next = larger
+			for larger != nil {
+				larger = larger.next
+				merged.DocsCount++
+			}
 			break
 		}
 	}

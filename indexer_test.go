@@ -56,57 +56,29 @@ func TestIndexerAddDocument(t *testing.T) {
 	// pp.Println(indexer.InvertedIndexMap)
 }
 
-func TestUpdateMemoryInvertedIndexByText(t *testing.T) {
+func TestUpdateMemoryInvertedIndexByDocument(t *testing.T) {
 	cases := []struct {
-		docID  DocumentID
-		text   string
+		doc    Document
 		output InvertedIndexMap
 	}{
 		{
-			docID: 1,
-			text:  "int string uint string string",
+			doc: Document{ID: 1, Body: "int string uint string string"},
 			output: InvertedIndexMap{
 				3: InvertedIndexValue{
-					Token: Token{ID: 3, Term: "int"},
-					PostingList: PostingList{
-						Posting{
-							DocumentID: 1,
-							Positions: []int{
-								0,
-							},
-							PositionsCount: 1,
-						},
-					},
+					Token:          Token{ID: 3, Term: "int"},
+					PostingList:    newPostings(1, []int{0}, 1, nil),
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
 				6: InvertedIndexValue{
-					Token: Token{ID: 6, Term: "string"},
-					PostingList: PostingList{
-						Posting{
-							DocumentID: 1,
-							Positions: []int{
-								1,
-								3,
-								4,
-							},
-							PositionsCount: 3,
-						},
-					},
+					Token:          Token{ID: 6, Term: "string"},
+					PostingList:    newPostings(1, []int{1, 3, 4}, 3, nil),
 					DocsCount:      1,
 					PositionsCount: 3,
 				},
 				4: InvertedIndexValue{
-					Token: Token{ID: 4, Term: "uint"},
-					PostingList: PostingList{
-						Posting{
-							DocumentID: 1,
-							Positions: []int{
-								2,
-							},
-							PositionsCount: 1,
-						},
-					},
+					Token:          Token{ID: 4, Term: "uint"},
+					PostingList:    newPostings(1, []int{2}, 1, nil),
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
@@ -120,8 +92,7 @@ func TestUpdateMemoryInvertedIndexByText(t *testing.T) {
 			Analyzer:         Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{}},
 			InvertedIndexMap: InvertedIndexMap{},
 		}
-		indexer.UpdateMemoryInvertedIndexByText(tt.docID, tt.text)
-		// pp.Println(indexer.InvertedIndexMap)
+		indexer.UpdateMemoryInvertedIndexByDocument(tt.doc)
 		if diff := cmp.Diff(indexer.InvertedIndexMap, tt.output); diff != "" {
 			t.Errorf("Diff: (-got +want)\n%s", diff)
 		}
@@ -141,16 +112,8 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			pos:   1,
 			output: InvertedIndexMap{
 				3: InvertedIndexValue{
-					Token: Token{ID: 3, Term: "abc"},
-					PostingList: PostingList{
-						Posting{
-							DocumentID: 1,
-							Positions: []int{
-								1,
-							},
-							PositionsCount: 1,
-						},
-					},
+					Token:          Token{ID: 3, Term: "abc"},
+					PostingList:    newPostings(1, []int{1}, 1, nil),
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
@@ -162,16 +125,8 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			pos:   2,
 			output: InvertedIndexMap{
 				4: InvertedIndexValue{
-					Token: Token{ID: 4, Term: "abcd"},
-					PostingList: PostingList{
-						Posting{
-							DocumentID: 1,
-							Positions: []int{
-								2,
-							},
-							PositionsCount: 1,
-						},
-					},
+					Token:          Token{ID: 4, Term: "abcd"},
+					PostingList:    newPostings(2, []int{2}, 1, nil),
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
@@ -186,14 +141,13 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			InvertedIndexMap: InvertedIndexMap{},
 		}
 		indexer.UpdateMemoryInvertedIndexByToken(tt.docID, tt.token, tt.pos)
-		// pp.Println(indexer.InvertedIndexMap)
 		if diff := cmp.Diff(indexer.InvertedIndexMap, tt.output); diff != "" {
 			t.Errorf("Diff: (-got +want)\n%s", diff)
 		}
 	}
 }
 
-func TestMergeInvertedIndex(t *testing.T) {
+func TestMerge(t *testing.T) {
 	cases := []struct {
 		memoryInvertedIndex  InvertedIndexValue
 		storageInvertedIndex InvertedIndexValue
@@ -201,101 +155,20 @@ func TestMergeInvertedIndex(t *testing.T) {
 	}{
 		{
 			memoryInvertedIndex: InvertedIndexValue{
-				Token: Token{ID: 3, Term: "int"},
-				PostingList: PostingList{
-					Posting{
-						DocumentID: 1,
-						Positions: []int{
-							0,
-						},
-						PositionsCount: 1,
-					},
-					Posting{
-						DocumentID: 3,
-						Positions: []int{
-							0,
-						},
-						PositionsCount: 1,
-					},
-					Posting{
-						DocumentID: 4,
-						Positions: []int{
-							3,
-						},
-						PositionsCount: 1,
-					},
-				},
+				Token:          Token{ID: 3, Term: "int"},
+				PostingList:    newPostings(1, []int{0}, 1, newPostings(3, []int{0}, 1, newPostings(4, []int{3}, 1, nil))),
 				DocsCount:      3,
 				PositionsCount: 3,
 			},
 			storageInvertedIndex: InvertedIndexValue{
-				Token: Token{ID: 3, Term: "int"},
-				PostingList: PostingList{
-					Posting{
-						DocumentID: 2,
-						Positions: []int{
-							1, 2,
-						},
-						PositionsCount: 2,
-					},
-					Posting{
-						DocumentID: 4,
-						Positions: []int{
-							3,
-						},
-						PositionsCount: 1,
-					},
-					Posting{
-						DocumentID: 5,
-						Positions: []int{
-							12,
-						},
-						PositionsCount: 1,
-					},
-				},
+				Token:          Token{ID: 3, Term: "int"},
+				PostingList:    newPostings(2, []int{1, 2}, 2, newPostings(4, []int{3}, 1, newPostings(5, []int{12}, 1, nil))),
 				DocsCount:      3,
 				PositionsCount: 4,
 			},
 			output: InvertedIndexValue{
-				Token: Token{ID: 3, Term: "int"},
-				PostingList: PostingList{
-					Posting{
-						DocumentID: 1,
-						Positions: []int{
-							0,
-						},
-						PositionsCount: 1,
-					},
-					Posting{
-						DocumentID: 2,
-						Positions: []int{
-							1,
-							2,
-						},
-						PositionsCount: 2,
-					},
-					Posting{
-						DocumentID: 3,
-						Positions: []int{
-							0,
-						},
-						PositionsCount: 1,
-					},
-					Posting{
-						DocumentID: 4,
-						Positions: []int{
-							3,
-						},
-						PositionsCount: 1,
-					},
-					Posting{
-						DocumentID: 5,
-						Positions: []int{
-							12,
-						},
-						PositionsCount: 1,
-					},
-				},
+				Token:          Token{ID: 3, Term: "int"},
+				PostingList:    newPostings(1, []int{0}, 1, newPostings(2, []int{1, 2}, 2, newPostings(3, []int{0}, 1, newPostings(4, []int{3}, 1, newPostings(5, []int{12}, 1, nil))))),
 				DocsCount:      5,
 				PositionsCount: 6,
 			},
@@ -303,7 +176,7 @@ func TestMergeInvertedIndex(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		merged, err := MergeInvertedIndex(tt.memoryInvertedIndex, tt.storageInvertedIndex)
+		merged, err := merge(tt.memoryInvertedIndex, tt.storageInvertedIndex)
 		if err != nil {
 			t.Error("error: merge failed")
 		}
