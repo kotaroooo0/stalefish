@@ -26,7 +26,7 @@ const INDEX_SIZE_THRESHOLD = 10
 // 2.トークンごとにポスティングリストを作って、それをメモリ上の転置インデックスに追加する
 // 3.メモリ上の転置インデックスがある程度のサイズになったら、ストレージ上の転置インデックスにマージする
 func (i *Indexer) AddDocument(doc Document) error {
-	// ストレージに文書を格納
+	// ストレージに文書を格納し、IDを取得
 	docID, err := i.Storage.AddDocument(doc)
 	if err != nil {
 		return err
@@ -34,7 +34,9 @@ func (i *Indexer) AddDocument(doc Document) error {
 	doc.ID = docID
 
 	// 文書から転置リストを構築
-	i.UpdateMemoryInvertedIndexByDocument(doc)
+	if err := i.updateMemoryInvertedIndexByDocument(doc); err != nil {
+		return err
+	}
 
 	// ストレージ上の転置インデックスにマージする
 	if len(i.InvertedIndexMap) >= INDEX_SIZE_THRESHOLD {
@@ -67,10 +69,10 @@ func (i *Indexer) AddDocument(doc Document) error {
 }
 
 // 文書からメモリ上の転置インデックスを更新する
-func (i *Indexer) UpdateMemoryInvertedIndexByDocument(doc Document) error {
+func (i *Indexer) updateMemoryInvertedIndexByDocument(doc Document) error {
 	tokens := i.Analyzer.Analyze(doc.Body)
 	for pos, token := range tokens.Tokens {
-		if err := i.UpdateMemoryInvertedIndexByToken(doc.ID, token, pos); err != nil {
+		if err := i.updateMemoryInvertedIndexByToken(doc.ID, token, pos); err != nil {
 			return err
 		}
 	}
@@ -78,7 +80,7 @@ func (i *Indexer) UpdateMemoryInvertedIndexByDocument(doc Document) error {
 }
 
 // トークンからメモリ上の転置インデックスを更新する
-func (i *Indexer) UpdateMemoryInvertedIndexByToken(docID DocumentID, term Token, pos int) error {
+func (i *Indexer) updateMemoryInvertedIndexByToken(docID DocumentID, term Token, pos int) error {
 	// ストレージにIDの管理を任せる
 	i.Storage.AddToken(NewToken(term.Term))
 
@@ -88,10 +90,10 @@ func (i *Indexer) UpdateMemoryInvertedIndexByToken(docID DocumentID, term Token,
 	}
 
 	invertedIndexValue, ok := i.InvertedIndexMap[token.ID]
-	if !ok { // 対応するinvertedIndexValueがない場合
+	if !ok { // 対応するinvertedIndexValueがない
 		i.InvertedIndexMap[token.ID] = InvertedIndexValue{
 			Token:          token,
-			PostingList:    newPostings(docID, []int{pos}, 1, nil),
+			PostingList:    NewPostings(docID, []int{pos}, 1, nil),
 			DocsCount:      1,
 			PositionsCount: 1,
 		}
@@ -101,24 +103,28 @@ func (i *Indexer) UpdateMemoryInvertedIndexByToken(docID DocumentID, term Token,
 	// ドキュメントに対応するポスティングが存在するかどうか
 	// p == nilになる前にループ終了: 存在する
 	// p == nilまでループが回る: 存在しない
-	p := invertedIndexValue.PostingList
-	for p.documentId != docID && p != nil {
-		p = p.next
+	var p *Postings = invertedIndexValue.PostingList
+	for p != nil && p.DocumentID != docID {
+		p = p.Next
 	}
 
 	if p != nil { // 既に対象ドキュメントのポスティングが存在する
-		p.positions = append(p.positions, pos)
-		p.positionsCount++
+		p.Positions = append(p.Positions, pos)
+		p.PositionsCount++
 
 		invertedIndexValue.PositionsCount++
 		i.InvertedIndexMap[token.ID] = invertedIndexValue
 	} else { // まだ対象ドキュメントのポスティングが存在しない
-		// ドキュメントIDが昇順になるように挿入する場所を探索
-		t := invertedIndexValue.PostingList
-		for t.next.documentId < docID {
-			t = t.next
+		if docID < invertedIndexValue.PostingList.DocumentID { // 追加されるポスティングのドキュメントIDが最小の時
+			invertedIndexValue.PostingList = NewPostings(docID, []int{pos}, 1, invertedIndexValue.PostingList)
+		} else { // 追加されるポスティングのドキュメントIDが最小でない時
+			// ドキュメントIDが昇順になるように挿入する場所を探索
+			var t *Postings = invertedIndexValue.PostingList
+			for t.Next != nil && t.Next.DocumentID < docID {
+				t = t.Next
+			}
+			t.push(NewPostings(docID, []int{pos}, 1, nil))
 		}
-		t.push(newPostings(docID, []int{pos}, 1, nil))
 
 		invertedIndexValue.DocsCount++
 		invertedIndexValue.PositionsCount++
@@ -141,53 +147,36 @@ func merge(memory, storage InvertedIndexValue) (InvertedIndexValue, error) {
 		DocsCount:      0,
 	}
 
-	var smaller, larger *postings
-	if memory.PostingList.documentId <= storage.PostingList.documentId {
+	var smaller, larger *Postings
+	if memory.PostingList.DocumentID <= storage.PostingList.DocumentID {
 		merged.PostingList = memory.PostingList
-		smaller = memory.PostingList
-		larger = storage.PostingList
+		smaller, larger = memory.PostingList, storage.PostingList
 	} else {
 		merged.PostingList = storage.PostingList
-		smaller = storage.PostingList
-		larger = memory.PostingList
+		smaller, larger = storage.PostingList, memory.PostingList
 	}
 
-	for {
-		merged.DocsCount++
-
-		if smaller.next.documentId < larger.documentId {
-			smaller = smaller.next
+	for larger != nil {
+		if smaller.Next == nil {
+			smaller.Next = larger
+			break
 		}
 
-		if smaller.next.documentId > larger.documentId {
-			larNext := larger.next
-			smaNext := smaller.next
-			smaller.next = larger
-			larger.next = smaNext
+		if smaller.Next.DocumentID < larger.DocumentID {
+			smaller = smaller.Next
+		} else if smaller.Next.DocumentID > larger.DocumentID {
+			largerNext, smallerNext := larger.Next, smaller.Next
+			smaller.Next, larger.Next = larger, smallerNext
 			smaller = larger
-			larger = larNext
+			larger = largerNext
+		} else if smaller.Next.DocumentID == larger.DocumentID {
+			smaller, larger = smaller.Next, larger.Next
 		}
+	}
 
-		if smaller.next.documentId == larger.documentId {
-			smaller = smaller.next
-			larger = larger.next
-		}
-
-		if larger == nil {
-			for smaller != nil {
-				smaller = smaller.next
-				merged.DocsCount++
-			}
-			break
-		}
-		if smaller.next == nil {
-			smaller.next = larger
-			for larger != nil {
-				larger = larger.next
-				merged.DocsCount++
-			}
-			break
-		}
+	for c := merged.PostingList; c != nil; c = c.Next {
+		merged.DocsCount += 1
+		merged.PositionsCount += c.PositionsCount
 	}
 	return merged, nil
 }
