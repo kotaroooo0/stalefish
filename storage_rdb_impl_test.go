@@ -73,7 +73,7 @@ func TestGetDocuments(t *testing.T) {
 	}
 }
 
-func TestStorageAddDocument(t *testing.T) {
+func TestAddDocument(t *testing.T) {
 	db, err := NewTestDBClient()
 	if err != nil {
 		t.Error(err)
@@ -105,6 +105,47 @@ func TestStorageAddDocument(t *testing.T) {
 
 	for _, tt := range cases {
 		id, err := storage.AddDocument(tt.doc)
+		if err != nil {
+			t.Error(err)
+		}
+		if diff := cmp.Diff(id, tt.id); diff != "" {
+			t.Errorf("Diff: (-got +want)\n%s", diff)
+		}
+	}
+}
+
+func TestAddToken(t *testing.T) {
+	db, err := NewTestDBClient()
+	if err != nil {
+		t.Error(err)
+	}
+	db.Exec("truncate table tokens")
+	storage := NewStorageRdbImpl(db)
+
+	cases := []struct {
+		token Token
+		id    TokenID
+	}{
+		{
+			token: NewToken("token1"),
+			id:    1,
+		},
+		{
+			token: NewToken("token2"),
+			id:    2,
+		},
+		{
+			token: NewToken("token3"),
+			id:    3,
+		},
+		{
+			token: NewToken("token4"),
+			id:    4,
+		},
+	}
+
+	for _, tt := range cases {
+		id, err := storage.AddToken(tt.token)
 		if err != nil {
 			t.Error(err)
 		}
@@ -176,7 +217,7 @@ func TestUpsertInvertedIndex(t *testing.T) {
 
 	inverted := InvertedIndexValue{
 		Token:          Token{ID: 12, Term: "hoge"},
-		PostingList:    newPostings(1, []int{1, 2, 3, 4}, 4, newPostings(3, []int{11, 22}, 2, nil)),
+		PostingList:    NewPostings(1, []int{1, 2, 3, 4}, 4, NewPostings(3, []int{11, 22}, 2, nil)),
 		DocsCount:      123,
 		PositionsCount: 11,
 	}
@@ -211,7 +252,7 @@ func TestGetInvertedIndexByTokenID(t *testing.T) {
 	token := Token{ID: 1, Term: "hoge"}
 	inverted := InvertedIndexValue{
 		Token:          token,
-		PostingList:    newPostings(1, []int{1, 2, 3, 4}, 4, newPostings(3, []int{11, 22}, 2, nil)),
+		PostingList:    NewPostings(1, []int{1, 2, 3, 4}, 4, NewPostings(3, []int{11, 22}, 2, nil)),
 		DocsCount:      123,
 		PositionsCount: 11,
 	}

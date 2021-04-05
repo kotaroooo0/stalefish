@@ -57,7 +57,7 @@ func (ms MatchSearcher) Search() ([]Document, error) {
 		}
 		invertedIndexValues[i] = invertedIndexValue
 	}
-	list := make([]*postings, ms.TokenStream.size())
+	list := make([]*Postings, ms.TokenStream.size())
 	for i, v := range invertedIndexValues {
 		list[i] = v.PostingList
 	}
@@ -72,41 +72,41 @@ func (ms MatchSearcher) Search() ([]Document, error) {
 }
 
 // AND検索
-func andMatch(list []*postings) []DocumentID {
+func andMatch(list []*Postings) []DocumentID {
 	var ids []DocumentID = make([]DocumentID, 0)
 	for !isEndAnd(list) {
 		if isSameDocumentId(list) {
-			ids = append(ids, list[0].documentId)
+			ids = append(ids, list[0].DocumentID)
 			for i := range list {
-				list[i] = list[i].next
+				list[i] = list[i].Next
 			}
 		}
 		idx := minIdx(list)
-		list[idx] = list[idx].next
+		list[idx] = list[idx].Next
 	}
 	return ids
 }
 
 // OR検索
-func orMatch(list []*postings) []DocumentID {
+func orMatch(list []*Postings) []DocumentID {
 	var ids []DocumentID = make([]DocumentID, 0)
 	for !isEndOr(list) {
 		for i, l := range list {
 			if l == nil {
 				continue
 			}
-			ids = append(ids, l.documentId)
-			list[i] = list[i].next
+			ids = append(ids, l.DocumentID)
+			list[i] = list[i].Next
 		}
 	}
 	return uniqueDocumentId(ids)
 }
 
 // 最小のドキュメントIDを持つポスティングリストのインデックス
-func minIdx(list []*postings) int {
+func minIdx(list []*Postings) int {
 	min := 0
 	for i := 1; i < len(list); i++ {
-		if list[min].documentId > list[i].documentId {
+		if list[min].DocumentID > list[i].DocumentID {
 			min = i
 		}
 	}
@@ -114,9 +114,9 @@ func minIdx(list []*postings) int {
 }
 
 // 全てのドキュメントIDが同じかどうか
-func isSameDocumentId(list []*postings) bool {
+func isSameDocumentId(list []*Postings) bool {
 	for i := range list {
-		if list[i-1].documentId != list[i].documentId {
+		if list[i-1].DocumentID != list[i].DocumentID {
 			return false
 		}
 	}
@@ -124,7 +124,7 @@ func isSameDocumentId(list []*postings) bool {
 }
 
 // 一つでもnilのポスティングリストがあればAND終了
-func isEndAnd(list []*postings) bool {
+func isEndAnd(list []*Postings) bool {
 	for _, p := range list {
 		if p == nil {
 			return true
@@ -134,7 +134,7 @@ func isEndAnd(list []*postings) bool {
 }
 
 // 全てがnilのポスティングリストがあればOR終了
-func isEndOr(list []*postings) bool {
+func isEndOr(list []*Postings) bool {
 	for _, p := range list {
 		if p != nil {
 			return false
@@ -196,7 +196,7 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 		}
 		invertedIndexValues[i] = invertedIndexValue
 	}
-	list := make([]*postings, ps.TokenStream.size())
+	list := make([]*Postings, ps.TokenStream.size())
 	for i, v := range invertedIndexValues {
 		list[i] = v.PostingList
 	}
@@ -205,7 +205,7 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 	docIDs := make([]DocumentID, ps.TokenStream.size())
 	for {
 		for i := 0; i < ps.TokenStream.size(); i++ {
-			docIDs[i] = invertedIndexValues[i].PostingList.documentId
+			docIDs[i] = invertedIndexValues[i].PostingList.DocumentID
 		}
 
 		if isSameDocumentId(list) { // カーソルが指す全てのDocIDが等しい時
@@ -216,12 +216,12 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 
 			// カーソルを全て動かす
 			for i := range list {
-				list[i] = list[i].next
+				list[i] = list[i].Next
 			}
 		} else {
 			// 一番小さいカーソルを動かす
 			idx := minIdx(list)
-			list[idx] = list[idx].next
+			list[idx] = list[idx].Next
 		}
 
 		if isEndAnd(list) {
@@ -238,11 +238,11 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 //	[7],
 // ]
 // が与えられて、相対ポジションに変換してintスライス間で共通する要素があるか判定する
-func isPhraseMatch(tokenStream *TokenStream, list []*postings) bool {
+func isPhraseMatch(tokenStream *TokenStream, list []*Postings) bool {
 	// 相対ポジションリストを作る
 	relativePositionsList := make([][]int, tokenStream.size())
 	for i := range relativePositionsList {
-		relativePositionsList[i] = decrementIntSlice(list[i].positions, i)
+		relativePositionsList[i] = decrementIntSlice(list[i].Positions, i)
 	}
 
 	// 共通の要素が存在すればフレーズが存在するということになる
