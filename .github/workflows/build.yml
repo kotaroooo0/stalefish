@@ -1,12 +1,11 @@
 name: build
 
-on: [push, pull_request]
+on: [push]
 
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    container: golang:latest
     steps:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2

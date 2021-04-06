@@ -1,6 +1,6 @@
 name: test
 
-on: [push, pull_request]
+on: [push]
 
 jobs:
   test:
@@ -18,7 +18,7 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
 
-    - name: exec hoge.sql
+    - name: Init MySQL
       run: |
         mysql -h 127.0.0.1 --port 3306 -u root -ppassword -e "$(cat $(find ./ -name 1_initialize_schema.sql))"
 
