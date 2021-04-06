@@ -6,7 +6,6 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    container: golang:latest
     services:
       mysql:
         image: mysql:5.7
