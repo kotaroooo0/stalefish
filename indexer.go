@@ -18,7 +18,7 @@ func NewIndexer(storage Storage, analyzer Analyzer, invertedIndexMap InvertedInd
 	}
 }
 
-const INDEX_SIZE_THRESHOLD = 10
+const INDEX_SIZE_THRESHOLD = 0
 
 // TODO: Goと言えばgoroutine, 並列化をしていきたい
 // TODO: AddDocumentsも作りたい

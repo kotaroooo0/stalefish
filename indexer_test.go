@@ -28,9 +28,7 @@ func TestIndexerAddDocument(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	db.Exec("truncate table documents")
-	db.Exec("truncate table tokens")
-	db.Exec("truncate table inverted_indexes")
+	truncateTableAll(db)
 
 	storage := NewStorageRdbImpl(db)
 	analyzer := NewAnalyzer([]CharFilter{}, StandardTokenizer{}, []TokenFilter{LowercaseFilter{}, StopWordFilter{}})

@@ -74,12 +74,13 @@ func (ms MatchSearcher) Search() ([]Document, error) {
 // AND検索
 func andMatch(list []*Postings) []DocumentID {
 	var ids []DocumentID = make([]DocumentID, 0)
-	for !isEndAnd(list) {
+	for notAllNil(list) {
 		if isSameDocumentId(list) {
 			ids = append(ids, list[0].DocumentID)
 			for i := range list {
 				list[i] = list[i].Next
 			}
+			continue
 		}
 		idx := minIdx(list)
 		list[idx] = list[idx].Next
@@ -90,7 +91,7 @@ func andMatch(list []*Postings) []DocumentID {
 // OR検索
 func orMatch(list []*Postings) []DocumentID {
 	var ids []DocumentID = make([]DocumentID, 0)
-	for !isEndOr(list) {
+	for !allNil(list) {
 		for i, l := range list {
 			if l == nil {
 				continue
@@ -113,28 +114,28 @@ func minIdx(list []*Postings) int {
 	return min
 }
 
-// 全てのドキュメントIDが同じかどうか
+// スライスに含まれる全てのポスティングリストが指すキュメントIDが同じかどうか
 func isSameDocumentId(list []*Postings) bool {
-	for i := range list {
-		if list[i-1].DocumentID != list[i].DocumentID {
+	for i := 0; i < len(list)-1; i++ {
+		if list[i].DocumentID != list[i+1].DocumentID {
 			return false
 		}
 	}
 	return true
 }
 
-// 一つでもnilのポスティングリストがあればAND終了
-func isEndAnd(list []*Postings) bool {
+// 全てのポスティングリストがnilではない
+func notAllNil(list []*Postings) bool {
 	for _, p := range list {
 		if p == nil {
-			return true
+			return false
 		}
 	}
-	return false
+	return true
 }
 
-// 全てがnilのポスティングリストがあればOR終了
-func isEndOr(list []*Postings) bool {
+// 全てのポスティングリストがnil
+func allNil(list []*Postings) bool {
 	for _, p := range list {
 		if p != nil {
 			return false
@@ -202,16 +203,11 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 	}
 
 	var matchedDocumentIDs []DocumentID
-	docIDs := make([]DocumentID, ps.TokenStream.size())
 	for {
-		for i := 0; i < ps.TokenStream.size(); i++ {
-			docIDs[i] = invertedIndexValues[i].PostingList.DocumentID
-		}
-
 		if isSameDocumentId(list) { // カーソルが指す全てのDocIDが等しい時
 			// フレーズが等しければ結果に追加
 			if isPhraseMatch(ps.TokenStream, list) {
-				matchedDocumentIDs = append(matchedDocumentIDs, docIDs[0])
+				matchedDocumentIDs = append(matchedDocumentIDs, list[0].DocumentID)
 			}
 
 			// カーソルを全て動かす
@@ -224,7 +220,7 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 			list[idx] = list[idx].Next
 		}
 
-		if isEndAnd(list) {
+		if !notAllNil(list) {
 			break
 		}
 	}

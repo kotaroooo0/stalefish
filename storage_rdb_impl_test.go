@@ -15,13 +15,20 @@ func NewTestDBClient() (*sqlx.DB, error) {
 	return NewDBClient(config)
 }
 
+func truncateTableAll(db *sqlx.DB) {
+	db.Exec("truncate table documents")
+	db.Exec("truncate table tokens")
+	db.Exec("truncate table inverted_indexes")
+}
+
 func TestGetDocuments(t *testing.T) {
 	// TODO: before()作って共通化
 	db, err := NewTestDBClient()
 	if err != nil {
 		t.Error(err)
 	}
-	db.Exec("truncate table documents")
+	truncateTableAll(db)
+
 	storage := NewStorageRdbImpl(db)
 
 	// TODO: テストデータ生成方法
@@ -78,7 +85,7 @@ func TestAddDocument(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	db.Exec("truncate table documents")
+	truncateTableAll(db)
 	storage := NewStorageRdbImpl(db)
 
 	cases := []struct {
@@ -119,7 +126,7 @@ func TestAddToken(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	db.Exec("truncate table tokens")
+	truncateTableAll(db)
 	storage := NewStorageRdbImpl(db)
 
 	cases := []struct {
@@ -161,7 +168,7 @@ func TestGetTokenByTerm(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	db.Exec("truncate table tokens")
+	truncateTableAll(db)
 	storage := NewStorageRdbImpl(db)
 
 	// TODO: テストデータ生成方法
@@ -212,7 +219,7 @@ func TestUpsertInvertedIndex(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	db.Exec("truncate table inverted_indexes")
+	truncateTableAll(db)
 	storage := NewStorageRdbImpl(db)
 
 	inverted := InvertedIndexValue{
@@ -245,8 +252,8 @@ func TestGetInvertedIndexByTokenID(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	db.Exec("truncate table tokens")
-	db.Exec("truncate table inverted_indexes")
+	truncateTableAll(db)
+
 	storage := NewStorageRdbImpl(db)
 
 	token := Token{ID: 1, Term: "hoge"}

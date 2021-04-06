@@ -50,8 +50,10 @@ type DBConfig struct {
 
 func (s StorageRdbImpl) GetAllDocuments() ([]Document, error) {
 	var docs []Document
-	err := s.DB.Select(&docs, `select * from documents`)
-	return docs, errors.New(err.Error())
+	if err := s.DB.Select(&docs, `select * from documents`); err != nil {
+		return nil, errors.New(err.Error())
+	}
+	return docs, nil
 }
 
 func (s StorageRdbImpl) GetDocuments(ids []DocumentID) ([]Document, error) {
@@ -65,8 +67,10 @@ func (s StorageRdbImpl) GetDocuments(ids []DocumentID) ([]Document, error) {
 		return nil, errors.New(err.Error())
 	}
 	var docs []Document
-	err = s.DB.Select(&docs, sql, params...)
-	return docs, errors.New(err.Error())
+	if err = s.DB.Select(&docs, sql, params...); err != nil {
+		return nil, errors.New(err.Error())
+	}
+	return docs, nil
 }
 
 func (s StorageRdbImpl) AddDocument(doc Document) (DocumentID, error) {
