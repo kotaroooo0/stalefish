@@ -1,6 +1,7 @@
 # stalefish
 
-![Go](https://github.com/kotaroooo0/stalefish/workflows/Go/badge.svg)
+[![build](https://github.com/kotaroooo0/stalefish/actions/workflows/build.yml/badge.svg)](https://github.com/kotaroooo0/stalefish/actions/workflows/build.yml)
+[![test](https://github.com/kotaroooo0/stalefish/actions/workflows/test.yml/badge.svg)](https://github.com/kotaroooo0/stalefish/actions/workflows/test.yml)
 
 stalefish is a toy full text search engine written in Go.
 MySQL is used for data persistence now.
