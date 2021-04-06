@@ -19,6 +19,9 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
 
+    - name: debug
+      uses: pwd
+
     - name: Init MySQL
       run: mysql -h 127.0.0.1 --port 3306 -uroot -ppassword -e "$(cat $(find ./ -name 1_initialize_schema.sql))"
 
