@@ -3,15 +3,19 @@ package stalefish
 import "strings"
 
 type CharFilter interface {
-	Filter(string) string
+	filter(string) string
 }
 
 type MappingCharFilter struct {
-	Mapper map[string]string // key->valueにマッピングする
+	mapper map[string]string // key->valueにマッピングする
 }
 
-func (c MappingCharFilter) Filter(s string) string {
-	for k, v := range c.Mapper {
+func NewMappingCharFilter(mapper map[string]string) *MappingCharFilter {
+	return &MappingCharFilter{mapper: mapper}
+}
+
+func (c MappingCharFilter) filter(s string) string {
+	for k, v := range c.mapper {
 		s = strings.Replace(s, k, v, -1)
 	}
 	return s

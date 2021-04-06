@@ -4,15 +4,10 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/ikawaha/kagome/v2/tokenizer"
 )
 
 func TestAnalyze(t *testing.T) {
-	kagome, err := NewKagome()
-	if err != nil {
-		t.Error("error: fail to initialize kagome tokenizer")
-	}
-	morphologicalTokenizer := NewMorphologicalTokenizer(kagome, tokenizer.Search)
+	morphologicalTokenizer := NewMorphologicalTokenizer(NewKagomeMock())
 
 	cases := []struct {
 		analyzer Analyzer
@@ -20,19 +15,19 @@ func TestAnalyze(t *testing.T) {
 		tokens   *TokenStream
 	}{
 		{
-			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{}},
+			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
 			text:     "",
 			tokens:   NewTokenStream([]Token{}, Term),
 		},
 		{
-			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{}},
+			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
 			text:     "a",
 			tokens: NewTokenStream([]Token{
 				NewToken("a"),
 			}, Term),
 		},
 		{
-			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{}},
+			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
 			text:     "small wild,cat!",
 			tokens: NewTokenStream([]Token{
 				NewToken("small"),
@@ -41,7 +36,7 @@ func TestAnalyze(t *testing.T) {
 			}, Term),
 		},
 		{
-			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{LowercaseFilter{}}},
+			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewLowercaseFilter()}},
 			text:     "I am BIG",
 			tokens: NewTokenStream([]Token{
 				NewToken("i"),
@@ -50,7 +45,7 @@ func TestAnalyze(t *testing.T) {
 			}, Term),
 		},
 		{
-			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{StopWordFilter{}}},
+			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewStopWordFilter()}},
 			text:     "how a Big",
 			tokens: NewTokenStream([]Token{
 				NewToken("how"),
@@ -58,7 +53,7 @@ func TestAnalyze(t *testing.T) {
 			}, Term),
 		},
 		{
-			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{StemmerFilter{}}},
+			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewStemmerFilter()}},
 			text:     "Long pens",
 			tokens: NewTokenStream([]Token{
 				NewToken("long"),

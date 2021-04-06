@@ -238,6 +238,6 @@ func (pl *PostingList) Scan(val interface{}) error {
 		json.Unmarshal([]byte(v), &pl)
 		return nil
 	default:
-		return fmt.Errorf("Unsupported type: %T", v)
+		return errors.New(fmt.Sprintf("unsupported type: %T", v))
 	}
 }

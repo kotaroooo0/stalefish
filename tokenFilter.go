@@ -8,12 +8,16 @@ import (
 )
 
 type TokenFilter interface {
-	Filter(*TokenStream) *TokenStream
+	filter(*TokenStream) *TokenStream
 }
 
 type LowercaseFilter struct{}
 
-func (f LowercaseFilter) Filter(tokenStream *TokenStream) *TokenStream {
+func NewLowercaseFilter() *LowercaseFilter {
+	return &LowercaseFilter{}
+}
+
+func (f LowercaseFilter) filter(tokenStream *TokenStream) *TokenStream {
 	r := make([]Token, tokenStream.size())
 	for i, token := range tokenStream.Tokens {
 		lower := strings.ToLower(token.Term)
@@ -24,7 +28,11 @@ func (f LowercaseFilter) Filter(tokenStream *TokenStream) *TokenStream {
 
 type StopWordFilter struct{}
 
-func (f StopWordFilter) Filter(tokenStream *TokenStream) *TokenStream {
+func NewStopWordFilter() *StopWordFilter {
+	return &StopWordFilter{}
+}
+
+func (f StopWordFilter) filter(tokenStream *TokenStream) *TokenStream {
 	var stopwords = map[string]struct{}{
 		"a": {}, "and": {}, "be": {}, "have": {}, "i": {},
 		"in": {}, "of": {}, "that": {}, "the": {}, "to": {},
@@ -40,7 +48,11 @@ func (f StopWordFilter) Filter(tokenStream *TokenStream) *TokenStream {
 
 type StemmerFilter struct{}
 
-func (f StemmerFilter) Filter(tokenStream *TokenStream) *TokenStream {
+func NewStemmerFilter() *StemmerFilter {
+	return &StemmerFilter{}
+}
+
+func (f StemmerFilter) filter(tokenStream *TokenStream) *TokenStream {
 	r := make([]Token, tokenStream.size())
 	for i, token := range tokenStream.Tokens {
 		stemmed := english.Stem(token.Term, false)
@@ -50,18 +62,18 @@ func (f StemmerFilter) Filter(tokenStream *TokenStream) *TokenStream {
 }
 
 type ReadingformFilter struct {
-	Selected Kind
+	selected Kind
 }
 
 func NewReadingformFilter(kind Kind) ReadingformFilter {
 	return ReadingformFilter{
-		Selected: kind,
+		selected: kind,
 	}
 }
 
-func (f ReadingformFilter) Filter(tokenStream *TokenStream) *TokenStream {
+func (f ReadingformFilter) filter(tokenStream *TokenStream) *TokenStream {
 	// ローマ字に指定されていたらローマ字に変換する、それ以外ではカナに変換する
-	if f.Selected == Romaji {
+	if f.selected == Romaji {
 		tokenStream.Selected = Romaji
 		for i, token := range tokenStream.Tokens {
 			token.Romaji = jaconv.ToHebon(jaconv.KatakanaToHiragana(token.Kana))

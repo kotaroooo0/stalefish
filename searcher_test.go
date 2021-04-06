@@ -15,7 +15,7 @@ func TestMatchAllSearch(t *testing.T) {
 	truncateTableAll(db)
 
 	storage := NewStorageRdbImpl(db)
-	analyzer := NewAnalyzer([]CharFilter{}, StandardTokenizer{}, []TokenFilter{LowercaseFilter{}, StopWordFilter{}})
+	analyzer := NewAnalyzer([]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewLowercaseFilter(), NewStopWordFilter()})
 	indexer := NewIndexer(storage, analyzer, make(InvertedIndexMap))
 
 	doc1 := NewDocument("aa bb cc dd aa bb")
@@ -55,7 +55,7 @@ func TestMatchSearch(t *testing.T) {
 	truncateTableAll(db)
 
 	storage := NewStorageRdbImpl(db)
-	analyzer := NewAnalyzer([]CharFilter{}, StandardTokenizer{}, []TokenFilter{LowercaseFilter{}, StopWordFilter{}})
+	analyzer := NewAnalyzer([]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewLowercaseFilter(), NewStopWordFilter()})
 	indexer := NewIndexer(storage, analyzer, make(InvertedIndexMap))
 
 	doc1 := NewDocument("aa bb tt")
@@ -131,7 +131,7 @@ func TestPhraseSearch(t *testing.T) {
 	truncateTableAll(db)
 
 	storage := NewStorageRdbImpl(db)
-	analyzer := NewAnalyzer([]CharFilter{}, StandardTokenizer{}, []TokenFilter{LowercaseFilter{}, StopWordFilter{}})
+	analyzer := NewAnalyzer([]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewLowercaseFilter(), NewStopWordFilter()})
 	indexer := NewIndexer(storage, analyzer, make(InvertedIndexMap))
 
 	doc1 := NewDocument("aa bb cc")

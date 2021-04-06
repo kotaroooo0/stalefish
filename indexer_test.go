@@ -31,7 +31,7 @@ func TestIndexerAddDocument(t *testing.T) {
 	truncateTableAll(db)
 
 	storage := NewStorageRdbImpl(db)
-	analyzer := NewAnalyzer([]CharFilter{}, StandardTokenizer{}, []TokenFilter{LowercaseFilter{}, StopWordFilter{}})
+	analyzer := NewAnalyzer([]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewLowercaseFilter(), NewStopWordFilter()})
 	indexer := NewIndexer(storage, analyzer, make(InvertedIndexMap))
 
 	doc1 := NewDocument("aa bb cc dd aa bb")
@@ -103,7 +103,7 @@ func TestUpdateMemoryInvertedIndexByDocument(t *testing.T) {
 	for _, tt := range cases {
 		indexer := Indexer{
 			Storage:          TestStorage{},
-			Analyzer:         Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{}},
+			Analyzer:         Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
 			InvertedIndexMap: InvertedIndexMap{},
 		}
 		if err := indexer.updateMemoryInvertedIndexByDocument(tt.doc); err != nil {
@@ -193,7 +193,7 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 	for _, tt := range cases {
 		indexer := Indexer{
 			Storage:  TestStorage{},
-			Analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{}},
+			Analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
 			InvertedIndexMap: InvertedIndexMap{
 				TokenID(3): InvertedIndexValue{
 					Token:          Token{ID: 3, Term: "abc", Kana: "", Romaji: ""},

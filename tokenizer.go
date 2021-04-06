@@ -4,17 +4,20 @@ import (
 	"strings"
 	"unicode"
 
-	ipaneologd "github.com/ikawaha/kagome-dict-ipa-neologd"
-	"github.com/ikawaha/kagome/v2/tokenizer"
+	"github.com/kotaroooo0/stalefish/morphology"
 )
 
 type Tokenizer interface {
-	Tokenize(string) *TokenStream
+	tokenize(string) *TokenStream
 }
 
 type StandardTokenizer struct{}
 
-func (t StandardTokenizer) Tokenize(s string) *TokenStream {
+func NewStandardTokenizer() StandardTokenizer {
+	return StandardTokenizer{}
+}
+
+func (t StandardTokenizer) tokenize(s string) *TokenStream {
 	terms := strings.FieldsFunc(s, func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
 	})
@@ -26,34 +29,20 @@ func (t StandardTokenizer) Tokenize(s string) *TokenStream {
 }
 
 type MorphologicalTokenizer struct {
-	Kagome *tokenizer.Tokenizer
-	Mode   tokenizer.TokenizeMode
+	morphology morphology.Morphology
 }
 
-func (t MorphologicalTokenizer) Tokenize(s string) *TokenStream {
-	kagomeTokens := t.Kagome.Analyze(s, t.Mode)
-	tokens := make([]Token, 0)
-	for _, token := range kagomeTokens {
-		features := token.Features()
-		if features[1] == "空白" {
-			continue
-		}
-		kana := token.Surface
-		if len(features) >= 8 {
-			kana = features[7]
-		}
-		tokens = append(tokens, NewToken(token.Surface, SetKana(kana)))
+func (t MorphologicalTokenizer) tokenize(s string) *TokenStream {
+	mTokens := t.morphology.Analyze(s)
+	tokens := make([]Token, len(mTokens))
+	for i, t := range mTokens {
+		tokens[i] = NewToken(t.Term, SetKana(t.Kana))
 	}
 	return NewTokenStream(tokens, Term)
 }
 
-func NewMorphologicalTokenizer(kagome *tokenizer.Tokenizer, mode tokenizer.TokenizeMode) *MorphologicalTokenizer {
-	return &MorphologicalTokenizer{
-		Kagome: kagome,
-		Mode:   mode,
+func NewMorphologicalTokenizer(morphology morphology.Morphology) MorphologicalTokenizer {
+	return MorphologicalTokenizer{
+		morphology: morphology,
 	}
-}
-
-func NewKagome() (*tokenizer.Tokenizer, error) {
-	return tokenizer.New(ipaneologd.Dict(), tokenizer.OmitBosEos())
 }
