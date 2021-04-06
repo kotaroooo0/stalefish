@@ -15,13 +15,20 @@ func NewTestDBClient() (*sqlx.DB, error) {
 	return NewDBClient(config)
 }
 
+func truncateTableAll(db *sqlx.DB) {
+	db.Exec("truncate table documents")
+	db.Exec("truncate table tokens")
+	db.Exec("truncate table inverted_indexes")
+}
+
 func TestGetDocuments(t *testing.T) {
 	// TODO: before()作って共通化
 	db, err := NewTestDBClient()
 	if err != nil {
 		t.Error(err)
 	}
-	db.Exec("truncate table documents")
+	truncateTableAll(db)
+
 	storage := NewStorageRdbImpl(db)
 
 	// TODO: テストデータ生成方法
@@ -73,12 +80,12 @@ func TestGetDocuments(t *testing.T) {
 	}
 }
 
-func TestStorageAddDocument(t *testing.T) {
+func TestAddDocument(t *testing.T) {
 	db, err := NewTestDBClient()
 	if err != nil {
 		t.Error(err)
 	}
-	db.Exec("truncate table documents")
+	truncateTableAll(db)
 	storage := NewStorageRdbImpl(db)
 
 	cases := []struct {
@@ -114,13 +121,54 @@ func TestStorageAddDocument(t *testing.T) {
 	}
 }
 
+func TestAddToken(t *testing.T) {
+	db, err := NewTestDBClient()
+	if err != nil {
+		t.Error(err)
+	}
+	truncateTableAll(db)
+	storage := NewStorageRdbImpl(db)
+
+	cases := []struct {
+		token Token
+		id    TokenID
+	}{
+		{
+			token: NewToken("token1"),
+			id:    1,
+		},
+		{
+			token: NewToken("token2"),
+			id:    2,
+		},
+		{
+			token: NewToken("token3"),
+			id:    3,
+		},
+		{
+			token: NewToken("token4"),
+			id:    4,
+		},
+	}
+
+	for _, tt := range cases {
+		id, err := storage.AddToken(tt.token)
+		if err != nil {
+			t.Error(err)
+		}
+		if diff := cmp.Diff(id, tt.id); diff != "" {
+			t.Errorf("Diff: (-got +want)\n%s", diff)
+		}
+	}
+}
+
 func TestGetTokenByTerm(t *testing.T) {
 	// NOTE:ここから実装
 	db, err := NewTestDBClient()
 	if err != nil {
 		t.Error(err)
 	}
-	db.Exec("truncate table tokens")
+	truncateTableAll(db)
 	storage := NewStorageRdbImpl(db)
 
 	// TODO: テストデータ生成方法
@@ -171,22 +219,12 @@ func TestUpsertInvertedIndex(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	db.Exec("truncate table inverted_indexes")
+	truncateTableAll(db)
 	storage := NewStorageRdbImpl(db)
 
-	p1 := Posting{
-		DocumentID:     1,
-		Positions:      []int{1, 2, 3, 4},
-		PositionsCount: 4,
-	}
-	p2 := Posting{
-		DocumentID:     3,
-		Positions:      []int{11, 22},
-		PositionsCount: 2,
-	}
 	inverted := InvertedIndexValue{
 		Token:          Token{ID: 12, Term: "hoge"},
-		PostingList:    []Posting{p1, p2},
+		PostingList:    NewPostings(1, []int{1, 2, 3, 4}, 4, NewPostings(3, []int{11, 22}, 2, nil)),
 		DocsCount:      123,
 		PositionsCount: 11,
 	}
@@ -214,24 +252,14 @@ func TestGetInvertedIndexByTokenID(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	db.Exec("truncate table tokens")
-	db.Exec("truncate table inverted_indexes")
+	truncateTableAll(db)
+
 	storage := NewStorageRdbImpl(db)
 
-	p1 := Posting{
-		DocumentID:     1,
-		Positions:      []int{1, 2, 3, 4},
-		PositionsCount: 4,
-	}
-	p2 := Posting{
-		DocumentID:     3,
-		Positions:      []int{11, 22},
-		PositionsCount: 2,
-	}
 	token := Token{ID: 1, Term: "hoge"}
 	inverted := InvertedIndexValue{
 		Token:          token,
-		PostingList:    []Posting{p1, p2},
+		PostingList:    NewPostings(1, []int{1, 2, 3, 4}, 4, NewPostings(3, []int{11, 22}, 2, nil)),
 		DocsCount:      123,
 		PositionsCount: 11,
 	}

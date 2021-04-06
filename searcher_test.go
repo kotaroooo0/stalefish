@@ -12,9 +12,7 @@ func TestMatchAllSearch(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	db.Exec("truncate table documents")
-	db.Exec("truncate table tokens")
-	db.Exec("truncate table inverted_indexes")
+	truncateTableAll(db)
 
 	storage := NewStorageRdbImpl(db)
 	analyzer := NewAnalyzer([]CharFilter{}, StandardTokenizer{}, []TokenFilter{LowercaseFilter{}, StopWordFilter{}})
@@ -54,32 +52,32 @@ func TestMatchSearch(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	db.Exec("truncate table documents")
-	db.Exec("truncate table tokens")
-	db.Exec("truncate table inverted_indexes")
+	truncateTableAll(db)
 
 	storage := NewStorageRdbImpl(db)
 	analyzer := NewAnalyzer([]CharFilter{}, StandardTokenizer{}, []TokenFilter{LowercaseFilter{}, StopWordFilter{}})
 	indexer := NewIndexer(storage, analyzer, make(InvertedIndexMap))
 
-	doc1 := NewDocument("aa bb cc dd aa bb")
-	err = indexer.AddDocument(doc1)
-	if err != nil {
+	doc1 := NewDocument("aa bb tt")
+	if err = indexer.AddDocument(doc1); err != nil {
 		t.Error(err)
 	}
-	doc2 := NewDocument("ee ff gg hh ii jj kk")
-	err = indexer.AddDocument(doc2)
-	if err != nil {
+	doc2 := NewDocument("ee ff")
+	if err = indexer.AddDocument(doc2); err != nil {
 		t.Error(err)
 	}
-	doc3 := NewDocument("aa aa bb bb jj kk ll oo nn bb vv rr tt uu yy qq")
-	err = indexer.AddDocument(doc3)
-	if err != nil {
+	doc3 := NewDocument("aa bb gg")
+	if err = indexer.AddDocument(doc3); err != nil {
+		t.Error(err)
+	}
+	doc4 := NewDocument("cc dd")
+	if err = indexer.AddDocument(doc4); err != nil {
 		t.Error(err)
 	}
 	doc1.ID = 1
 	doc2.ID = 2
 	doc3.ID = 3
+	doc4.ID = 4
 
 	cases := []struct {
 		terms        *TokenStream
@@ -88,10 +86,7 @@ func TestMatchSearch(t *testing.T) {
 	}{
 		{
 			terms: NewTokenStream(
-				[]Token{
-					NewToken("aa"),
-					NewToken("bb"),
-				},
+				[]Token{NewToken("aa"), NewToken("bb")},
 				Term,
 			),
 			logic:        AND,
@@ -99,14 +94,19 @@ func TestMatchSearch(t *testing.T) {
 		},
 		{
 			terms: NewTokenStream(
-				[]Token{
-					NewToken("dd"),
-					NewToken("qq"),
-				},
+				[]Token{NewToken("ee"), NewToken("cc")},
 				Term,
 			),
 			logic:        OR,
-			expectedDocs: []Document{doc1, doc3},
+			expectedDocs: []Document{doc2, doc4},
+		},
+		{
+			terms: NewTokenStream(
+				[]Token{NewToken("aa"), NewToken("tt"), NewToken("dd")},
+				Term,
+			),
+			logic:        OR,
+			expectedDocs: []Document{doc1, doc3, doc4},
 		},
 	}
 
@@ -128,27 +128,22 @@ func TestPhraseSearch(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	db.Exec("truncate table documents")
-	db.Exec("truncate table tokens")
-	db.Exec("truncate table inverted_indexes")
+	truncateTableAll(db)
 
 	storage := NewStorageRdbImpl(db)
 	analyzer := NewAnalyzer([]CharFilter{}, StandardTokenizer{}, []TokenFilter{LowercaseFilter{}, StopWordFilter{}})
 	indexer := NewIndexer(storage, analyzer, make(InvertedIndexMap))
 
-	doc1 := NewDocument("aa bb cc dd aa bb")
-	err = indexer.AddDocument(doc1)
-	if err != nil {
+	doc1 := NewDocument("aa bb cc")
+	if err = indexer.AddDocument(doc1); err != nil {
 		t.Error(err)
 	}
-	doc2 := NewDocument("ee ff gg hh ii jj kk")
-	err = indexer.AddDocument(doc2)
-	if err != nil {
+	doc2 := NewDocument("ee ff gg")
+	if err = indexer.AddDocument(doc2); err != nil {
 		t.Error(err)
 	}
-	doc3 := NewDocument("aa aa bb bb jj kk ll oo nn bb vv rr tt uu yy qq")
-	err = indexer.AddDocument(doc3)
-	if err != nil {
+	doc3 := NewDocument("jj kk ll aa bb")
+	if err = indexer.AddDocument(doc3); err != nil {
 		t.Error(err)
 	}
 	doc1.ID = 1
@@ -161,39 +156,29 @@ func TestPhraseSearch(t *testing.T) {
 	}{
 		{
 			terms: NewTokenStream(
-				[]Token{
-					NewToken("aa"),
-					NewToken("bb"),
-				},
+				[]Token{NewToken("aa"), NewToken("bb")},
 				Term,
 			),
 			expectedDocs: []Document{doc1, doc3},
 		},
 		{
 			terms: NewTokenStream(
-				[]Token{
-					NewToken("tt"),
-					NewToken("uu"),
-				},
+				[]Token{NewToken("ff"), NewToken("gg")},
 				Term,
 			),
-			expectedDocs: []Document{doc3},
+			expectedDocs: []Document{doc2},
 		},
 		{
 			terms: NewTokenStream(
-				[]Token{
-					NewToken("aa"),
-				},
+				[]Token{NewToken("aa")},
 				Term,
 			), expectedDocs: []Document{doc1, doc3},
 		},
 		{
 			terms: NewTokenStream(
-				[]Token{
-					NewToken("ff"),
-				},
+				[]Token{NewToken("ll")},
 				Term,
-			), expectedDocs: []Document{doc2},
+			), expectedDocs: []Document{doc3},
 		},
 		{
 			terms:        NewTokenStream([]Token{}, Term),

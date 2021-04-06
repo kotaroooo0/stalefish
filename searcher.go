@@ -1,9 +1,5 @@
 package stalefish
 
-import (
-	"fmt"
-)
-
 type Logic int
 
 const (
@@ -42,11 +38,14 @@ func NewMatchSearcher(tokenStream *TokenStream, logic Logic, storage Storage) Ma
 }
 
 func (ms MatchSearcher) Search() ([]Document, error) {
+	// トークンストリームが空ならマッチするドキュメントなし
 	if ms.TokenStream.size() == 0 {
 		return []Document{}, nil
 	}
+	// トークンごとの転置リストを取得
 	invertedIndexValues := make(InvertedIndexValues, ms.TokenStream.size())
 	for i, t := range ms.TokenStream.Tokens {
+		// IDを取得するため
 		token, err := ms.Storage.GetTokenByTerm(t.Term)
 		if err != nil {
 			return nil, err
@@ -58,51 +57,103 @@ func (ms MatchSearcher) Search() ([]Document, error) {
 		}
 		invertedIndexValues[i] = invertedIndexValue
 	}
-	var matchedDocumentIDs []DocumentID
-	checked := make(map[DocumentID]struct{})
+	list := make([]*Postings, ms.TokenStream.size())
+	for i, v := range invertedIndexValues {
+		list[i] = v.PostingList
+	}
+
+	var matchedIds []DocumentID
 	if ms.Logic == AND {
-		for _, p := range invertedIndexValues[0].PostingList {
-			flag := true
-			for i := 1; i < ms.TokenStream.size(); i++ {
-				docIDs := make([]DocumentID, len(invertedIndexValues[i].PostingList))
-				for _, pos := range invertedIndexValues[i].PostingList {
-					docIDs = append(docIDs, pos.DocumentID)
-				}
-				if !contains(docIDs, p.DocumentID) {
-					flag = false
-					break
-				}
-			}
-			if flag {
-				matchedDocumentIDs = append(matchedDocumentIDs, p.DocumentID)
-			}
-		}
+		matchedIds = andMatch(list)
 	} else if ms.Logic == OR {
-		for i := range ms.TokenStream.Tokens {
-			for _, p := range invertedIndexValues[i].PostingList {
-				docID := p.DocumentID
-				_, ok := checked[docID]
-				if !ok {
-					matchedDocumentIDs = append(matchedDocumentIDs, docID)
-					checked[docID] = struct{}{}
-				}
-			}
-		}
+		matchedIds = orMatch(list)
 	}
-	docs, err := ms.Storage.GetDocuments(matchedDocumentIDs)
-	if err != nil {
-		return nil, err
-	}
-	return docs, nil
+	return ms.Storage.GetDocuments(matchedIds)
 }
 
-func contains(s []DocumentID, e DocumentID) bool {
-	for _, a := range s {
-		if a == e {
-			return true
+// AND検索
+func andMatch(list []*Postings) []DocumentID {
+	var ids []DocumentID = make([]DocumentID, 0)
+	for notAllNil(list) {
+		if isSameDocumentId(list) {
+			ids = append(ids, list[0].DocumentID)
+			for i := range list {
+				list[i] = list[i].Next
+			}
+			continue
+		}
+		idx := minIdx(list)
+		list[idx] = list[idx].Next
+	}
+	return ids
+}
+
+// OR検索
+func orMatch(list []*Postings) []DocumentID {
+	var ids []DocumentID = make([]DocumentID, 0)
+	for !allNil(list) {
+		for i, l := range list {
+			if l == nil {
+				continue
+			}
+			ids = append(ids, l.DocumentID)
+			list[i] = list[i].Next
 		}
 	}
-	return false
+	return uniqueDocumentId(ids)
+}
+
+// 最小のドキュメントIDを持つポスティングリストのインデックス
+func minIdx(list []*Postings) int {
+	min := 0
+	for i := 1; i < len(list); i++ {
+		if list[min].DocumentID > list[i].DocumentID {
+			min = i
+		}
+	}
+	return min
+}
+
+// スライスに含まれる全てのポスティングリストが指すキュメントIDが同じかどうか
+func isSameDocumentId(list []*Postings) bool {
+	for i := 0; i < len(list)-1; i++ {
+		if list[i].DocumentID != list[i+1].DocumentID {
+			return false
+		}
+	}
+	return true
+}
+
+// 全てのポスティングリストがnilではない
+func notAllNil(list []*Postings) bool {
+	for _, p := range list {
+		if p == nil {
+			return false
+		}
+	}
+	return true
+}
+
+// 全てのポスティングリストがnil
+func allNil(list []*Postings) bool {
+	for _, p := range list {
+		if p != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func uniqueDocumentId(ids []DocumentID) []DocumentID {
+	m := make(map[DocumentID]struct{})
+	for _, id := range ids {
+		m[id] = struct{}{}
+	}
+	uniq := make([]DocumentID, len(m))
+	for i := range m {
+		uniq = append(uniq, i)
+	}
+	return uniq
 }
 
 type PhraseSearcher struct {
@@ -126,82 +177,55 @@ func NewPhraseSearcher(tokenStream *TokenStream, storage Storage) PhraseSearcher
 // 6, 検索結果を適合度の降順に並べ替える
 // 7, 並び替えられた検索結果のうち、上位のものを検索結果として返す
 func (ps PhraseSearcher) Search() ([]Document, error) {
+	// トークンストリームが空ならマッチするドキュメントなし
 	if ps.TokenStream.size() == 0 {
 		return []Document{}, nil
 	}
 
+	// トークンごとの転置リストを取得
 	invertedIndexValues := make(InvertedIndexValues, ps.TokenStream.size())
 	for i, t := range ps.TokenStream.Tokens {
-		// ストレージからTokenIDを取得する
+		// IDを取得するため
 		token, err := ps.Storage.GetTokenByTerm(t.Term)
 		if err != nil {
 			return nil, err
 		}
-		// トークンがストレージに存在しなかった時、空を返す
-		if token.ID == 0 {
-			return []Document{}, nil
-		}
-
 		// ストレージから転置リストを取得する
 		invertedIndexValue, err := ps.Storage.GetInvertedIndexByTokenID(token.ID)
 		if err != nil {
 			return nil, err
 		}
-		// 転置リストがストレージに存在しなかった時、空を返す
-		if len(invertedIndexValue.PostingList) == 0 {
-			return []Document{}, nil
-		}
-
 		invertedIndexValues[i] = invertedIndexValue
+	}
+	list := make([]*Postings, ps.TokenStream.size())
+	for i, v := range invertedIndexValues {
+		list[i] = v.PostingList
 	}
 
 	var matchedDocumentIDs []DocumentID
-	cursors := make([]int, ps.TokenStream.size())
-	sizes := make([]int, ps.TokenStream.size())
-	docIDs := make([]DocumentID, ps.TokenStream.size())
-	for i := 0; i < ps.TokenStream.size(); i++ {
-		sizes[i] = len(invertedIndexValues[i].PostingList)
-	}
 	for {
-		for i, cursor := range cursors {
-			docIDs[i] = invertedIndexValues[i].PostingList[cursor].DocumentID
-		}
-
-		isSameDocID := true
-		for _, id := range docIDs {
-			if id != docIDs[0] {
-				isSameDocID = false
-			}
-		}
-		if isSameDocID { // カーソルが指す全てのDocIDが等しい時
+		if isSameDocumentId(list) { // カーソルが指す全てのDocIDが等しい時
 			// フレーズが等しければ結果に追加
-			if isPhraseMatch(ps.TokenStream, invertedIndexValues, cursors) {
-				matchedDocumentIDs = append(matchedDocumentIDs, docIDs[0])
+			if isPhraseMatch(ps.TokenStream, list) {
+				matchedDocumentIDs = append(matchedDocumentIDs, list[0].DocumentID)
 			}
 
 			// カーソルを全て動かす
-			cursors = incrementAllCursors(cursors)
+			for i := range list {
+				list[i] = list[i].Next
+			}
 		} else {
 			// 一番小さいカーソルを動かす
-			toBeIncrementedCursor := getMinDocumentIDCursor(cursors, invertedIndexValues)
-			cursors[toBeIncrementedCursor]++
+			idx := minIdx(list)
+			list[idx] = list[idx].Next
 		}
 
-		// カーソルがどれか一つでもサイズを越えればBreak
-		isBreak, err := isSearchEnd(cursors, sizes)
-		if err != nil {
-			return nil, err
-		}
-		if isBreak {
+		if !notAllNil(list) {
 			break
 		}
 	}
 
-	docs, err := ps.Storage.GetDocuments(matchedDocumentIDs)
-	if err != nil {
-		return nil, err
-	}
-	return docs, nil
+	return ps.Storage.GetDocuments(matchedDocumentIDs)
 }
 
 // [
@@ -210,11 +234,11 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 //	[7],
 // ]
 // が与えられて、相対ポジションに変換してintスライス間で共通する要素があるか判定する
-func isPhraseMatch(tokenStream *TokenStream, invertedIndexValues InvertedIndexValues, cursors []int) bool {
+func isPhraseMatch(tokenStream *TokenStream, list []*Postings) bool {
 	// 相対ポジションリストを作る
 	relativePositionsList := make([][]int, tokenStream.size())
-	for i := range tokenStream.Tokens {
-		relativePositionsList[i] = decrementIntSlice(invertedIndexValues[i].PostingList[cursors[i]].Positions, i)
+	for i := range relativePositionsList {
+		relativePositionsList[i] = decrementIntSlice(list[i].Positions, i)
 	}
 
 	// 共通の要素が存在すればフレーズが存在するということになる
@@ -223,38 +247,6 @@ func isPhraseMatch(tokenStream *TokenStream, invertedIndexValues InvertedIndexVa
 		commonElements = intCommonElement(commonElements, relativePositions)
 	}
 	return len(commonElements) >= 1
-}
-
-// 探索終了: true
-// 探索継続: false
-func isSearchEnd(cursors, postingListSizes []int) (bool, error) {
-	if len(cursors) != len(postingListSizes) {
-		return false, fmt.Errorf("error: invalid arguments(unmatch slice size)")
-	}
-	for i, c := range cursors {
-		if c >= postingListSizes[i] {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-// 一番ドキュメントIDが小さいカーソルを返す
-func getMinDocumentIDCursor(cursors []int, invertedIndexValues InvertedIndexValues) (minCursorIdx int) {
-	var minDocumentID DocumentID = 9223372036854775807
-	for i, c := range cursors {
-		if invertedIndexValues[i].PostingList[c].DocumentID < minDocumentID {
-			minCursorIdx = i
-		}
-	}
-	return
-}
-
-func incrementAllCursors(cursors []int) []int {
-	for i, c := range cursors {
-		cursors[i] = c + 1
-	}
-	return cursors
 }
 
 func decrementIntSlice(s []int, n int) []int {
