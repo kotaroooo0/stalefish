@@ -25,7 +25,7 @@ func (t StandardTokenizer) tokenize(s string) *TokenStream {
 	for _, term := range terms {
 		tokens = append(tokens, NewToken(term))
 	}
-	return NewTokenStream(tokens, Term)
+	return NewTokenStream(tokens)
 }
 
 type MorphologicalTokenizer struct {
@@ -38,7 +38,7 @@ func (t MorphologicalTokenizer) tokenize(s string) *TokenStream {
 	for i, t := range mTokens {
 		tokens[i] = NewToken(t.Term, setKana(t.Kana))
 	}
-	return NewTokenStream(tokens, Term)
+	return NewTokenStream(tokens)
 }
 
 func NewMorphologicalTokenizer(morphology morphology.Morphology) MorphologicalTokenizer {

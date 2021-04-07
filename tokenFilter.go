@@ -23,7 +23,7 @@ func (f LowercaseFilter) filter(tokenStream *TokenStream) *TokenStream {
 		lower := strings.ToLower(token.Term)
 		r[i] = NewToken(lower, setKana(token.Kana))
 	}
-	return NewTokenStream(r, tokenStream.Selected)
+	return NewTokenStream(r)
 }
 
 type StopWordFilter struct{}
@@ -43,7 +43,7 @@ func (f StopWordFilter) filter(tokenStream *TokenStream) *TokenStream {
 			r = append(r, token)
 		}
 	}
-	return NewTokenStream(r, tokenStream.Selected)
+	return NewTokenStream(r)
 }
 
 type StemmerFilter struct{}
@@ -58,7 +58,7 @@ func (f StemmerFilter) filter(tokenStream *TokenStream) *TokenStream {
 		stemmed := english.Stem(token.Term, false)
 		r[i] = NewToken(stemmed, setKana(token.Kana))
 	}
-	return NewTokenStream(r, tokenStream.Selected)
+	return NewTokenStream(r)
 }
 
 type ReadingformFilter struct {
@@ -74,15 +74,15 @@ func NewReadingformFilter(kind Kind) ReadingformFilter {
 func (f ReadingformFilter) filter(tokenStream *TokenStream) *TokenStream {
 	// ローマ字に指定されていたらローマ字に変換する、それ以外ではカナに変換する
 	if f.selected == Romaji {
-		tokenStream.Selected = Romaji
 		for i, token := range tokenStream.Tokens {
-			token.Romaji = jaconv.ToHebon(jaconv.KatakanaToHiragana(token.Kana))
-			tokenStream.Tokens[i] = token
+			tokenStream.Tokens[i].Term = jaconv.ToHebon(jaconv.KatakanaToHiragana(token.Kana))
 		}
 		return tokenStream
 	}
 
 	// カナはTokenizerで既に変換されているのでTokenStreamの変数にセットする
-	tokenStream.Selected = Kana
+	for i := range tokenStream.Tokens {
+		tokenStream.Tokens[i].Term = tokenStream.Tokens[i].Kana
+	}
 	return tokenStream
 }

@@ -129,19 +129,19 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			pos:   1,
 			expected: InvertedIndex{
 				TokenID(2): InvertedIndexValue{
-					Token:          Token{ID: 2, Term: "ab", Kana: "", Romaji: ""},
+					Token:          Token{ID: 2, Term: "ab", Kana: ""},
 					PostingList:    &Postings{DocumentID: 1, Positions: []int{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
 				TokenID(3): InvertedIndexValue{
-					Token:          Token{ID: 3, Term: "abc", Kana: "", Romaji: ""},
+					Token:          Token{ID: 3, Term: "abc", Kana: ""},
 					PostingList:    &Postings{DocumentID: 1, Positions: []int{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
 				TokenID(4): InvertedIndexValue{
-					Token:          Token{ID: 4, Term: "abcd", Kana: "", Romaji: ""},
+					Token:          Token{ID: 4, Term: "abcd", Kana: ""},
 					PostingList:    &Postings{DocumentID: 2, Positions: []int{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
@@ -155,13 +155,13 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			pos:   99,
 			expected: InvertedIndex{
 				TokenID(3): InvertedIndexValue{
-					Token:          Token{ID: 3, Term: "abc", Kana: "", Romaji: ""},
+					Token:          Token{ID: 3, Term: "abc", Kana: ""},
 					PostingList:    &Postings{DocumentID: 1, Positions: []int{1, 99}, PositionsCount: 2, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 2,
 				},
 				TokenID(4): InvertedIndexValue{
-					Token:          Token{ID: 4, Term: "abcd", Kana: "", Romaji: ""},
+					Token:          Token{ID: 4, Term: "abcd", Kana: ""},
 					PostingList:    &Postings{DocumentID: 2, Positions: []int{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
@@ -175,13 +175,13 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			pos:   99,
 			expected: InvertedIndex{
 				TokenID(3): InvertedIndexValue{
-					Token:          Token{ID: 3, Term: "abc", Kana: "", Romaji: ""},
+					Token:          Token{ID: 3, Term: "abc", Kana: ""},
 					PostingList:    &Postings{DocumentID: 1, Positions: []int{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
 				TokenID(4): InvertedIndexValue{
-					Token:          Token{ID: 4, Term: "abcd", Kana: "", Romaji: ""},
+					Token:          Token{ID: 4, Term: "abcd", Kana: ""},
 					PostingList:    &Postings{DocumentID: 1, Positions: []int{99}, PositionsCount: 1, Next: &Postings{DocumentID: 2, Positions: []int{1}, PositionsCount: 1, Next: nil}},
 					DocsCount:      2,
 					PositionsCount: 2,
@@ -196,13 +196,13 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			Analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
 			InvertedIndex: InvertedIndex{
 				TokenID(3): InvertedIndexValue{
-					Token:          Token{ID: 3, Term: "abc", Kana: "", Romaji: ""},
+					Token:          Token{ID: 3, Term: "abc", Kana: ""},
 					PostingList:    &Postings{DocumentID: 1, Positions: []int{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
 				TokenID(4): InvertedIndexValue{
-					Token:          Token{ID: 4, Term: "abcd", Kana: "", Romaji: ""},
+					Token:          Token{ID: 4, Term: "abcd", Kana: ""},
 					PostingList:    &Postings{DocumentID: 2, Positions: []int{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,

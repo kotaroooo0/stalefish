@@ -38,7 +38,7 @@ func TestMorphologicalTokenizerTokenize(t *testing.T) {
 				NewToken("天気", setKana("テンキ")),
 				NewToken("が", setKana("ガ")),
 				NewToken("良い", setKana("ヨイ")),
-			}, Term),
+			}),
 		},
 	}
 

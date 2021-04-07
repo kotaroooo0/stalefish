@@ -15,10 +15,9 @@ type InvertedIndex map[TokenID]InvertedIndexValue
 type TokenID int
 
 type Token struct {
-	ID     TokenID `db:"id"`
-	Term   string  `db:"term"`
-	Kana   string  `db:"kana"`
-	Romaji string  `db:"romaji"`
+	ID   TokenID `db:"id"`
+	Term string  `db:"term"`
+	Kana string  `db:"kana"`
 }
 
 type TokenOption func(*Token)
@@ -37,21 +36,14 @@ func setKana(kana string) TokenOption {
 	}
 }
 
-func setRomaji(romaji string) TokenOption {
-	return func(s *Token) {
-		s.Romaji = romaji
-	}
-}
-
 type TokenStream struct {
 	Tokens   []Token
 	Selected Kind
 }
 
-func NewTokenStream(tokens []Token, selected Kind) *TokenStream {
+func NewTokenStream(tokens []Token) *TokenStream {
 	return &TokenStream{
-		Tokens:   tokens,
-		Selected: selected,
+		Tokens: tokens,
 	}
 }
 
