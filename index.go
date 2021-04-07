@@ -1,11 +1,5 @@
 package stalefish
 
-// 転置インデックス
-// TokenIDー>転置リストのマップ
-type InvertedIndexMap map[TokenID]InvertedIndexValue
-
-type TokenID int
-
 type Kind int
 
 const (
@@ -13,6 +7,12 @@ const (
 	Kana               // トークンのカナ
 	Romaji             // トークンのローマ字
 )
+
+// 転置インデックス
+// TokenIDー>転置リストのマップ
+type InvertedIndex map[TokenID]InvertedIndexValue
+
+type TokenID int
 
 type Token struct {
 	ID     TokenID `db:"id"`
@@ -31,13 +31,13 @@ func NewToken(term string, options ...TokenOption) Token {
 	return token
 }
 
-func SetKana(kana string) TokenOption {
+func setKana(kana string) TokenOption {
 	return func(s *Token) {
 		s.Kana = kana
 	}
 }
 
-func SetRomaji(romaji string) TokenOption {
+func setRomaji(romaji string) TokenOption {
 	return func(s *Token) {
 		s.Romaji = romaji
 	}

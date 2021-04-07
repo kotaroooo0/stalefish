@@ -4,15 +4,10 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/ikawaha/kagome/v2/tokenizer"
 )
 
 func TestAnalyze(t *testing.T) {
-	kagome, err := NewKagome()
-	if err != nil {
-		t.Error("error: fail to initialize kagome tokenizer")
-	}
-	morphologicalTokenizer := NewMorphologicalTokenizer(kagome, tokenizer.Search)
+	morphologicalTokenizer := NewMorphologicalTokenizer(NewKagomeMock())
 
 	cases := []struct {
 		analyzer Analyzer
@@ -20,19 +15,19 @@ func TestAnalyze(t *testing.T) {
 		tokens   *TokenStream
 	}{
 		{
-			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{}},
+			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
 			text:     "",
 			tokens:   NewTokenStream([]Token{}, Term),
 		},
 		{
-			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{}},
+			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
 			text:     "a",
 			tokens: NewTokenStream([]Token{
 				NewToken("a"),
 			}, Term),
 		},
 		{
-			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{}},
+			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
 			text:     "small wild,cat!",
 			tokens: NewTokenStream([]Token{
 				NewToken("small"),
@@ -41,7 +36,7 @@ func TestAnalyze(t *testing.T) {
 			}, Term),
 		},
 		{
-			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{LowercaseFilter{}}},
+			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewLowercaseFilter()}},
 			text:     "I am BIG",
 			tokens: NewTokenStream([]Token{
 				NewToken("i"),
@@ -50,7 +45,7 @@ func TestAnalyze(t *testing.T) {
 			}, Term),
 		},
 		{
-			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{StopWordFilter{}}},
+			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewStopWordFilter()}},
 			text:     "how a Big",
 			tokens: NewTokenStream([]Token{
 				NewToken("how"),
@@ -58,7 +53,7 @@ func TestAnalyze(t *testing.T) {
 			}, Term),
 		},
 		{
-			analyzer: Analyzer{[]CharFilter{}, StandardTokenizer{}, []TokenFilter{StemmerFilter{}}},
+			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewStemmerFilter()}},
 			text:     "Long pens",
 			tokens: NewTokenStream([]Token{
 				NewToken("long"),
@@ -69,33 +64,33 @@ func TestAnalyze(t *testing.T) {
 			analyzer: Analyzer{[]CharFilter{}, morphologicalTokenizer, []TokenFilter{}},
 			text:     "今日は天気が良い",
 			tokens: NewTokenStream([]Token{
-				NewToken("今日", SetKana("キョウ")),
-				NewToken("は", SetKana("ハ")),
-				NewToken("天気", SetKana("テンキ")),
-				NewToken("が", SetKana("ガ")),
-				NewToken("良い", SetKana("ヨイ")),
+				NewToken("今日", setKana("キョウ")),
+				NewToken("は", setKana("ハ")),
+				NewToken("天気", setKana("テンキ")),
+				NewToken("が", setKana("ガ")),
+				NewToken("良い", setKana("ヨイ")),
 			}, Term),
 		},
 		{
 			analyzer: Analyzer{[]CharFilter{}, morphologicalTokenizer, []TokenFilter{NewReadingformFilter(Kana)}},
 			text:     "今日は天気が良い",
 			tokens: NewTokenStream([]Token{
-				NewToken("今日", SetKana("キョウ")),
-				NewToken("は", SetKana("ハ")),
-				NewToken("天気", SetKana("テンキ")),
-				NewToken("が", SetKana("ガ")),
-				NewToken("良い", SetKana("ヨイ")),
+				NewToken("今日", setKana("キョウ")),
+				NewToken("は", setKana("ハ")),
+				NewToken("天気", setKana("テンキ")),
+				NewToken("が", setKana("ガ")),
+				NewToken("良い", setKana("ヨイ")),
 			}, Kana),
 		},
 		{
 			analyzer: Analyzer{[]CharFilter{}, morphologicalTokenizer, []TokenFilter{NewReadingformFilter(Romaji)}},
 			text:     "今日は天気が良い",
 			tokens: NewTokenStream([]Token{
-				NewToken("今日", SetKana("キョウ"), SetRomaji("kyo")),
-				NewToken("は", SetKana("ハ"), SetRomaji("ha")),
-				NewToken("天気", SetKana("テンキ"), SetRomaji("tenki")),
-				NewToken("が", SetKana("ガ"), SetRomaji("ga")),
-				NewToken("良い", SetKana("ヨイ"), SetRomaji("yoi")),
+				NewToken("今日", setKana("キョウ"), setRomaji("kyo")),
+				NewToken("は", setKana("ハ"), setRomaji("ha")),
+				NewToken("天気", setKana("テンキ"), setRomaji("tenki")),
+				NewToken("が", setKana("ガ"), setRomaji("ga")),
+				NewToken("良い", setKana("ヨイ"), setRomaji("yoi")),
 			}, Romaji),
 		},
 	}

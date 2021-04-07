@@ -9,16 +9,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type StorageRdbImpl struct {
-	DB *sqlx.DB
-}
-
-func NewStorageRdbImpl(db *sqlx.DB) StorageRdbImpl {
-	return StorageRdbImpl{
-		DB: db,
-	}
-}
-
 func NewDBClient(dbConfig *DBConfig) (*sqlx.DB, error) {
 	db, err := sqlx.Open(
 		"mysql",
@@ -30,13 +20,13 @@ func NewDBClient(dbConfig *DBConfig) (*sqlx.DB, error) {
 	return db, nil
 }
 
-func NewDBConfig(user, password, addr, port, db string) *DBConfig {
-	return &DBConfig{
-		User:     user,
-		Password: password,
-		Addr:     addr,
-		Port:     port,
-		DB:       db,
+type StorageRdbImpl struct {
+	DB *sqlx.DB
+}
+
+func NewStorageRdbImpl(db *sqlx.DB) StorageRdbImpl {
+	return StorageRdbImpl{
+		DB: db,
 	}
 }
 
@@ -46,6 +36,16 @@ type DBConfig struct {
 	Addr     string
 	Port     string
 	DB       string
+}
+
+func NewDBConfig(user, password, addr, port, db string) *DBConfig {
+	return &DBConfig{
+		User:     user,
+		Password: password,
+		Addr:     addr,
+		Port:     port,
+		DB:       db,
+	}
 }
 
 func (s StorageRdbImpl) GetAllDocuments() ([]Document, error) {
@@ -238,6 +238,6 @@ func (pl *PostingList) Scan(val interface{}) error {
 		json.Unmarshal([]byte(v), &pl)
 		return nil
 	default:
-		return fmt.Errorf("Unsupported type: %T", v)
+		return errors.New(fmt.Sprintf("unsupported type: %T", v))
 	}
 }
