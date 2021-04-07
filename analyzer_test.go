@@ -17,14 +17,14 @@ func TestAnalyze(t *testing.T) {
 		{
 			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
 			text:     "",
-			tokens:   NewTokenStream([]Token{}, Term),
+			tokens:   NewTokenStream([]Token{}),
 		},
 		{
 			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
 			text:     "a",
 			tokens: NewTokenStream([]Token{
 				NewToken("a"),
-			}, Term),
+			}),
 		},
 		{
 			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
@@ -33,7 +33,7 @@ func TestAnalyze(t *testing.T) {
 				NewToken("small"),
 				NewToken("wild"),
 				NewToken("cat"),
-			}, Term),
+			}),
 		},
 		{
 			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewLowercaseFilter()}},
@@ -42,7 +42,7 @@ func TestAnalyze(t *testing.T) {
 				NewToken("i"),
 				NewToken("am"),
 				NewToken("big"),
-			}, Term),
+			}),
 		},
 		{
 			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewStopWordFilter()}},
@@ -50,7 +50,7 @@ func TestAnalyze(t *testing.T) {
 			tokens: NewTokenStream([]Token{
 				NewToken("how"),
 				NewToken("Big"),
-			}, Term),
+			}),
 		},
 		{
 			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewStemmerFilter()}},
@@ -58,7 +58,7 @@ func TestAnalyze(t *testing.T) {
 			tokens: NewTokenStream([]Token{
 				NewToken("long"),
 				NewToken("pen"),
-			}, Term),
+			}),
 		},
 		{
 			analyzer: Analyzer{[]CharFilter{}, morphologicalTokenizer, []TokenFilter{}},
@@ -69,29 +69,29 @@ func TestAnalyze(t *testing.T) {
 				NewToken("天気", setKana("テンキ")),
 				NewToken("が", setKana("ガ")),
 				NewToken("良い", setKana("ヨイ")),
-			}, Term),
+			}),
 		},
 		{
 			analyzer: Analyzer{[]CharFilter{}, morphologicalTokenizer, []TokenFilter{NewReadingformFilter(Kana)}},
 			text:     "今日は天気が良い",
 			tokens: NewTokenStream([]Token{
-				NewToken("今日", setKana("キョウ")),
-				NewToken("は", setKana("ハ")),
-				NewToken("天気", setKana("テンキ")),
-				NewToken("が", setKana("ガ")),
-				NewToken("良い", setKana("ヨイ")),
-			}, Kana),
+				NewToken("キョウ", setKana("キョウ")),
+				NewToken("ハ", setKana("ハ")),
+				NewToken("テンキ", setKana("テンキ")),
+				NewToken("ガ", setKana("ガ")),
+				NewToken("ヨイ", setKana("ヨイ")),
+			}),
 		},
 		{
 			analyzer: Analyzer{[]CharFilter{}, morphologicalTokenizer, []TokenFilter{NewReadingformFilter(Romaji)}},
 			text:     "今日は天気が良い",
 			tokens: NewTokenStream([]Token{
-				NewToken("今日", setKana("キョウ"), setRomaji("kyo")),
-				NewToken("は", setKana("ハ"), setRomaji("ha")),
-				NewToken("天気", setKana("テンキ"), setRomaji("tenki")),
-				NewToken("が", setKana("ガ"), setRomaji("ga")),
-				NewToken("良い", setKana("ヨイ"), setRomaji("yoi")),
-			}, Romaji),
+				NewToken("kyo", setKana("キョウ")),
+				NewToken("ha", setKana("ハ")),
+				NewToken("tenki", setKana("テンキ")),
+				NewToken("ga", setKana("ガ")),
+				NewToken("yoi", setKana("ヨイ")),
+			}),
 		},
 	}
 

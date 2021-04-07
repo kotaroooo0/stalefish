@@ -87,7 +87,6 @@ func TestMatchSearch(t *testing.T) {
 		{
 			terms: NewTokenStream(
 				[]Token{NewToken("aa"), NewToken("bb")},
-				Term,
 			),
 			logic:        AND,
 			expectedDocs: []Document{doc1, doc3},
@@ -95,7 +94,6 @@ func TestMatchSearch(t *testing.T) {
 		{
 			terms: NewTokenStream(
 				[]Token{NewToken("ee"), NewToken("cc")},
-				Term,
 			),
 			logic:        OR,
 			expectedDocs: []Document{doc2, doc4},
@@ -103,7 +101,6 @@ func TestMatchSearch(t *testing.T) {
 		{
 			terms: NewTokenStream(
 				[]Token{NewToken("aa"), NewToken("tt"), NewToken("dd")},
-				Term,
 			),
 			logic:        OR,
 			expectedDocs: []Document{doc1, doc3, doc4},
@@ -157,31 +154,27 @@ func TestPhraseSearch(t *testing.T) {
 		{
 			terms: NewTokenStream(
 				[]Token{NewToken("aa"), NewToken("bb")},
-				Term,
 			),
 			expectedDocs: []Document{doc1, doc3},
 		},
 		{
 			terms: NewTokenStream(
 				[]Token{NewToken("ff"), NewToken("gg")},
-				Term,
 			),
 			expectedDocs: []Document{doc2},
 		},
 		{
 			terms: NewTokenStream(
 				[]Token{NewToken("aa")},
-				Term,
 			), expectedDocs: []Document{doc1, doc3},
 		},
 		{
 			terms: NewTokenStream(
 				[]Token{NewToken("ll")},
-				Term,
 			), expectedDocs: []Document{doc3},
 		},
 		{
-			terms:        NewTokenStream([]Token{}, Term),
+			terms:        NewTokenStream([]Token{}),
 			expectedDocs: []Document{},
 		},
 	}
