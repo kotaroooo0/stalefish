@@ -11,37 +11,38 @@ func (q *MatchAllQuery) Searcher(storage Storage) Searcher {
 }
 
 type MatchQuery struct {
-	Text     string
-	Logic    Logic
-	Analyzer Analyzer
+	text     string
+	logic    Logic
+	analyzer Analyzer
 }
 
-func NewMatchQuery(text string, analyzer Analyzer) *MatchQuery {
+func NewMatchQuery(text string, logic Logic, analyzer Analyzer) *MatchQuery {
 	return &MatchQuery{
-		Text:     text,
-		Analyzer: analyzer,
+		text:     text,
+		logic:    logic,
+		analyzer: analyzer,
 	}
 }
 
 func (q *MatchQuery) Searcher(storage Storage) Searcher {
-	tokenStream := q.Analyzer.Analyze(q.Text)
-	return NewMatchSearcher(tokenStream, q.Logic, storage)
+	tokenStream := q.analyzer.Analyze(q.text)
+	return NewMatchSearcher(tokenStream, q.logic, storage)
 
 }
 
 type PhraseQuery struct {
-	Phrase   string
-	Analyzer Analyzer
+	phrase   string
+	analyzer Analyzer
 }
 
 func NewPhraseQuery(phrase string, analyzer Analyzer) *PhraseQuery {
 	return &PhraseQuery{
-		Phrase:   phrase,
-		Analyzer: analyzer,
+		phrase:   phrase,
+		analyzer: analyzer,
 	}
 }
 
 func (q *PhraseQuery) Searcher(storage Storage) Searcher {
-	terms := q.Analyzer.Analyze(q.Phrase)
+	terms := q.analyzer.Analyze(q.phrase)
 	return NewPhraseSearcher(terms, storage)
 }

@@ -12,63 +12,63 @@ type Searcher interface {
 }
 
 type MatchAllSearcher struct {
-	Storage Storage
+	storage Storage
 }
 
 func NewMatchAllSearcher(storage Storage) MatchAllSearcher {
-	return MatchAllSearcher{Storage: storage}
+	return MatchAllSearcher{storage: storage}
 }
 
 func (ms MatchAllSearcher) Search() ([]Document, error) {
-	return ms.Storage.GetAllDocuments()
+	return ms.storage.GetAllDocuments()
 }
 
 type MatchSearcher struct {
-	TokenStream *TokenStream
-	Logic       Logic
-	Storage     Storage
+	tokenStream *TokenStream
+	logic       Logic
+	storage     Storage
 }
 
 func NewMatchSearcher(tokenStream *TokenStream, logic Logic, storage Storage) MatchSearcher {
 	return MatchSearcher{
-		TokenStream: tokenStream,
-		Logic:       logic,
-		Storage:     storage,
+		tokenStream: tokenStream,
+		logic:       logic,
+		storage:     storage,
 	}
 }
 
 func (ms MatchSearcher) Search() ([]Document, error) {
 	// トークンストリームが空ならマッチするドキュメントなし
-	if ms.TokenStream.size() == 0 {
+	if ms.tokenStream.size() == 0 {
 		return []Document{}, nil
 	}
 	// トークンごとの転置リストを取得
-	invertedIndexValues := make(InvertedIndexValues, ms.TokenStream.size())
-	for i, t := range ms.TokenStream.Tokens {
+	invertedIndexValues := make(InvertedIndexValues, ms.tokenStream.size())
+	for i, t := range ms.tokenStream.Tokens {
 		// IDを取得するため
-		token, err := ms.Storage.GetTokenByTerm(t.Term)
+		token, err := ms.storage.GetTokenByTerm(t.Term)
 		if err != nil {
 			return nil, err
 		}
 		// ストレージから転置リストを取得する
-		invertedIndexValue, err := ms.Storage.GetInvertedIndexByTokenID(token.ID)
+		invertedIndexValue, err := ms.storage.GetInvertedIndexByTokenID(token.ID)
 		if err != nil {
 			return nil, err
 		}
 		invertedIndexValues[i] = invertedIndexValue
 	}
-	list := make([]*Postings, ms.TokenStream.size())
+	list := make([]*Postings, ms.tokenStream.size())
 	for i, v := range invertedIndexValues {
 		list[i] = v.PostingList
 	}
 
 	var matchedIds []DocumentID
-	if ms.Logic == AND {
+	if ms.logic == AND {
 		matchedIds = andMatch(list)
-	} else if ms.Logic == OR {
+	} else if ms.logic == OR {
 		matchedIds = orMatch(list)
 	}
-	return ms.Storage.GetDocuments(matchedIds)
+	return ms.storage.GetDocuments(matchedIds)
 }
 
 // AND検索
@@ -157,14 +157,14 @@ func uniqueDocumentId(ids []DocumentID) []DocumentID {
 }
 
 type PhraseSearcher struct {
-	TokenStream *TokenStream
-	Storage     Storage
+	tokenStream *TokenStream
+	storage     Storage
 }
 
 func NewPhraseSearcher(tokenStream *TokenStream, storage Storage) PhraseSearcher {
 	return PhraseSearcher{
-		TokenStream: tokenStream,
-		Storage:     storage,
+		tokenStream: tokenStream,
+		storage:     storage,
 	}
 }
 
@@ -178,26 +178,26 @@ func NewPhraseSearcher(tokenStream *TokenStream, storage Storage) PhraseSearcher
 // 7, 並び替えられた検索結果のうち、上位のものを検索結果として返す
 func (ps PhraseSearcher) Search() ([]Document, error) {
 	// トークンストリームが空ならマッチするドキュメントなし
-	if ps.TokenStream.size() == 0 {
+	if ps.tokenStream.size() == 0 {
 		return []Document{}, nil
 	}
 
 	// トークンごとの転置リストを取得
-	invertedIndexValues := make(InvertedIndexValues, ps.TokenStream.size())
-	for i, t := range ps.TokenStream.Tokens {
+	invertedIndexValues := make(InvertedIndexValues, ps.tokenStream.size())
+	for i, t := range ps.tokenStream.Tokens {
 		// IDを取得するため
-		token, err := ps.Storage.GetTokenByTerm(t.Term)
+		token, err := ps.storage.GetTokenByTerm(t.Term)
 		if err != nil {
 			return nil, err
 		}
 		// ストレージから転置リストを取得する
-		invertedIndexValue, err := ps.Storage.GetInvertedIndexByTokenID(token.ID)
+		invertedIndexValue, err := ps.storage.GetInvertedIndexByTokenID(token.ID)
 		if err != nil {
 			return nil, err
 		}
 		invertedIndexValues[i] = invertedIndexValue
 	}
-	list := make([]*Postings, ps.TokenStream.size())
+	list := make([]*Postings, ps.tokenStream.size())
 	for i, v := range invertedIndexValues {
 		list[i] = v.PostingList
 	}
@@ -206,7 +206,7 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 	for {
 		if isSameDocumentId(list) { // カーソルが指す全てのDocIDが等しい時
 			// フレーズが等しければ結果に追加
-			if isPhraseMatch(ps.TokenStream, list) {
+			if isPhraseMatch(ps.tokenStream, list) {
 				matchedDocumentIDs = append(matchedDocumentIDs, list[0].DocumentID)
 			}
 
@@ -224,8 +224,7 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 			break
 		}
 	}
-
-	return ps.Storage.GetDocuments(matchedDocumentIDs)
+	return ps.storage.GetDocuments(matchedDocumentIDs)
 }
 
 // [
