@@ -33,11 +33,11 @@ func TestMorphologicalTokenizerTokenize(t *testing.T) {
 		{
 			text: "今日は天気が良い",
 			expected: NewTokenStream([]Token{
-				NewToken("今日", SetKana("キョウ")),
-				NewToken("は", SetKana("ハ")),
-				NewToken("天気", SetKana("テンキ")),
-				NewToken("が", SetKana("ガ")),
-				NewToken("良い", SetKana("ヨイ")),
+				NewToken("今日", setKana("キョウ")),
+				NewToken("は", setKana("ハ")),
+				NewToken("天気", setKana("テンキ")),
+				NewToken("が", setKana("ガ")),
+				NewToken("良い", setKana("ヨイ")),
 			}, Term),
 		},
 	}

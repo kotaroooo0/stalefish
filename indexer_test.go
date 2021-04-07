@@ -32,7 +32,7 @@ func TestIndexerAddDocument(t *testing.T) {
 
 	storage := NewStorageRdbImpl(db)
 	analyzer := NewAnalyzer([]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewLowercaseFilter(), NewStopWordFilter()})
-	indexer := NewIndexer(storage, analyzer, make(InvertedIndexMap))
+	indexer := NewIndexer(storage, analyzer, make(InvertedIndex))
 
 	doc1 := NewDocument("aa bb cc dd aa bb")
 	err = indexer.AddDocument(doc1)
@@ -73,11 +73,11 @@ func TestIndexerAddDocument(t *testing.T) {
 func TestUpdateMemoryInvertedIndexByDocument(t *testing.T) {
 	cases := []struct {
 		doc    Document
-		output InvertedIndexMap
+		output InvertedIndex
 	}{
 		{
 			doc: Document{ID: 1, Body: "int string uint string string"},
-			output: InvertedIndexMap{
+			output: InvertedIndex{
 				3: InvertedIndexValue{
 					Token:          Token{ID: 3, Term: "int"},
 					PostingList:    NewPostings(1, []int{0}, 1, nil),
@@ -102,14 +102,14 @@ func TestUpdateMemoryInvertedIndexByDocument(t *testing.T) {
 
 	for _, tt := range cases {
 		indexer := Indexer{
-			Storage:          TestStorage{},
-			Analyzer:         Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
-			InvertedIndexMap: InvertedIndexMap{},
+			Storage:       TestStorage{},
+			Analyzer:      Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
+			InvertedIndex: InvertedIndex{},
 		}
 		if err := indexer.updateMemoryInvertedIndexByDocument(tt.doc); err != nil {
 			t.Error(err)
 		}
-		if diff := cmp.Diff(indexer.InvertedIndexMap, tt.output); diff != "" {
+		if diff := cmp.Diff(indexer.InvertedIndex, tt.output); diff != "" {
 			t.Errorf("Diff: (-got +want)\n%s", diff)
 		}
 	}
@@ -120,14 +120,14 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 		docID    DocumentID
 		token    Token
 		pos      int
-		expected InvertedIndexMap
+		expected InvertedIndex
 	}{
 		{
 			// 対応するinvertedIndexValueがない
 			docID: 1,
 			token: NewToken("ab"),
 			pos:   1,
-			expected: InvertedIndexMap{
+			expected: InvertedIndex{
 				TokenID(2): InvertedIndexValue{
 					Token:          Token{ID: 2, Term: "ab", Kana: "", Romaji: ""},
 					PostingList:    &Postings{DocumentID: 1, Positions: []int{1}, PositionsCount: 1, Next: nil},
@@ -153,7 +153,7 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			docID: 1,
 			token: NewToken("abc"),
 			pos:   99,
-			expected: InvertedIndexMap{
+			expected: InvertedIndex{
 				TokenID(3): InvertedIndexValue{
 					Token:          Token{ID: 3, Term: "abc", Kana: "", Romaji: ""},
 					PostingList:    &Postings{DocumentID: 1, Positions: []int{1, 99}, PositionsCount: 2, Next: nil},
@@ -173,7 +173,7 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			docID: 1,
 			token: NewToken("abcd"),
 			pos:   99,
-			expected: InvertedIndexMap{
+			expected: InvertedIndex{
 				TokenID(3): InvertedIndexValue{
 					Token:          Token{ID: 3, Term: "abc", Kana: "", Romaji: ""},
 					PostingList:    &Postings{DocumentID: 1, Positions: []int{1}, PositionsCount: 1, Next: nil},
@@ -194,7 +194,7 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 		indexer := Indexer{
 			Storage:  TestStorage{},
 			Analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
-			InvertedIndexMap: InvertedIndexMap{
+			InvertedIndex: InvertedIndex{
 				TokenID(3): InvertedIndexValue{
 					Token:          Token{ID: 3, Term: "abc", Kana: "", Romaji: ""},
 					PostingList:    &Postings{DocumentID: 1, Positions: []int{1}, PositionsCount: 1, Next: nil},
@@ -212,7 +212,7 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 		if err := indexer.updateMemoryInvertedIndexByToken(tt.docID, tt.token, tt.pos); err != nil {
 			t.Error(err)
 		}
-		if diff := cmp.Diff(indexer.InvertedIndexMap, tt.expected); diff != "" {
+		if diff := cmp.Diff(indexer.InvertedIndex, tt.expected); diff != "" {
 			t.Errorf("Diff: (-got +want)\n%s", diff)
 		}
 	}

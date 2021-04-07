@@ -36,7 +36,7 @@ func (t MorphologicalTokenizer) tokenize(s string) *TokenStream {
 	mTokens := t.morphology.Analyze(s)
 	tokens := make([]Token, len(mTokens))
 	for i, t := range mTokens {
-		tokens[i] = NewToken(t.Term, SetKana(t.Kana))
+		tokens[i] = NewToken(t.Term, setKana(t.Kana))
 	}
 	return NewTokenStream(tokens, Term)
 }

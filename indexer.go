@@ -5,16 +5,16 @@ import (
 )
 
 type Indexer struct {
-	Storage          Storage
-	Analyzer         Analyzer
-	InvertedIndexMap InvertedIndexMap
+	Storage       Storage
+	Analyzer      Analyzer
+	InvertedIndex InvertedIndex
 }
 
-func NewIndexer(storage Storage, analyzer Analyzer, invertedIndexMap InvertedIndexMap) *Indexer {
+func NewIndexer(storage Storage, analyzer Analyzer, invertedIndex InvertedIndex) *Indexer {
 	return &Indexer{
-		Storage:          storage,
-		Analyzer:         analyzer,
-		InvertedIndexMap: invertedIndexMap,
+		Storage:       storage,
+		Analyzer:      analyzer,
+		InvertedIndex: invertedIndex,
 	}
 }
 
@@ -39,8 +39,8 @@ func (i *Indexer) AddDocument(doc Document) error {
 	}
 
 	// ストレージ上の転置インデックスにマージする
-	if len(i.InvertedIndexMap) >= INDEX_SIZE_THRESHOLD {
-		for tokenID, invertedIndexValue := range i.InvertedIndexMap {
+	if len(i.InvertedIndex) >= INDEX_SIZE_THRESHOLD {
+		for tokenID, invertedIndexValue := range i.InvertedIndex {
 			// マージ元の転置リストをストレージから読み出す
 			storageInvertIndexValue, err := i.Storage.GetInvertedIndexByTokenID(tokenID)
 			if err != nil {
@@ -63,7 +63,7 @@ func (i *Indexer) AddDocument(doc Document) error {
 		}
 
 		// メモリの転置インデックスをリセット
-		i.InvertedIndexMap = InvertedIndexMap{}
+		i.InvertedIndex = InvertedIndex{}
 	}
 	return nil
 }
@@ -89,9 +89,9 @@ func (i *Indexer) updateMemoryInvertedIndexByToken(docID DocumentID, term Token,
 		return err
 	}
 
-	invertedIndexValue, ok := i.InvertedIndexMap[token.ID]
+	invertedIndexValue, ok := i.InvertedIndex[token.ID]
 	if !ok { // 対応するinvertedIndexValueがない
-		i.InvertedIndexMap[token.ID] = InvertedIndexValue{
+		i.InvertedIndex[token.ID] = InvertedIndexValue{
 			Token:          token,
 			PostingList:    NewPostings(docID, []int{pos}, 1, nil),
 			DocsCount:      1,
@@ -113,7 +113,7 @@ func (i *Indexer) updateMemoryInvertedIndexByToken(docID DocumentID, term Token,
 		p.PositionsCount++
 
 		invertedIndexValue.PositionsCount++
-		i.InvertedIndexMap[token.ID] = invertedIndexValue
+		i.InvertedIndex[token.ID] = invertedIndexValue
 	} else { // まだ対象ドキュメントのポスティングが存在しない
 		if docID < invertedIndexValue.PostingList.DocumentID { // 追加されるポスティングのドキュメントIDが最小の時
 			invertedIndexValue.PostingList = NewPostings(docID, []int{pos}, 1, invertedIndexValue.PostingList)
@@ -128,7 +128,7 @@ func (i *Indexer) updateMemoryInvertedIndexByToken(docID DocumentID, term Token,
 
 		invertedIndexValue.DocsCount++
 		invertedIndexValue.PositionsCount++
-		i.InvertedIndexMap[token.ID] = invertedIndexValue
+		i.InvertedIndex[token.ID] = invertedIndexValue
 	}
 	return nil
 }
