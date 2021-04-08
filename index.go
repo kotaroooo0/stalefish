@@ -1,13 +1,5 @@
 package stalefish
 
-type Kind int
-
-const (
-	Term   Kind = iota // トークンのオリジナル
-	Kana               // トークンのカナ
-	Romaji             // トークンのローマ字
-)
-
 // 転置インデックス
 // TokenIDー>転置リストのマップ
 type InvertedIndex map[TokenID]InvertedIndexValue
@@ -37,8 +29,7 @@ func setKana(kana string) TokenOption {
 }
 
 type TokenStream struct {
-	Tokens   []Token
-	Selected Kind
+	Tokens []Token
 }
 
 func NewTokenStream(tokens []Token) *TokenStream {

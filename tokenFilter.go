@@ -7,8 +7,26 @@ import (
 	"github.com/kotaroooo0/gojaconv/jaconv"
 )
 
+type CharType int
+
+const (
+	Kana   CharType = iota + 1 // カナ
+	Romaji                     // ローマ字
+)
+
+func (c CharType) String() string {
+	switch c {
+	case Kana:
+		return "Kana"
+	case Romaji:
+		return "Romaji"
+	default:
+		return "Unknown"
+	}
+}
+
 type TokenFilter interface {
-	filter(*TokenStream) *TokenStream
+	Filter(*TokenStream) *TokenStream
 }
 
 type LowercaseFilter struct{}
@@ -17,7 +35,7 @@ func NewLowercaseFilter() *LowercaseFilter {
 	return &LowercaseFilter{}
 }
 
-func (f LowercaseFilter) filter(tokenStream *TokenStream) *TokenStream {
+func (f *LowercaseFilter) Filter(tokenStream *TokenStream) *TokenStream {
 	r := make([]Token, tokenStream.size())
 	for i, token := range tokenStream.Tokens {
 		lower := strings.ToLower(token.Term)
@@ -32,7 +50,7 @@ func NewStopWordFilter() *StopWordFilter {
 	return &StopWordFilter{}
 }
 
-func (f StopWordFilter) filter(tokenStream *TokenStream) *TokenStream {
+func (f *StopWordFilter) Filter(tokenStream *TokenStream) *TokenStream {
 	var stopwords = map[string]struct{}{
 		"a": {}, "and": {}, "be": {}, "have": {}, "i": {},
 		"in": {}, "of": {}, "that": {}, "the": {}, "to": {},
@@ -52,7 +70,7 @@ func NewStemmerFilter() *StemmerFilter {
 	return &StemmerFilter{}
 }
 
-func (f StemmerFilter) filter(tokenStream *TokenStream) *TokenStream {
+func (f StemmerFilter) Filter(tokenStream *TokenStream) *TokenStream {
 	r := make([]Token, tokenStream.size())
 	for i, token := range tokenStream.Tokens {
 		stemmed := english.Stem(token.Term, false)
@@ -62,18 +80,18 @@ func (f StemmerFilter) filter(tokenStream *TokenStream) *TokenStream {
 }
 
 type ReadingformFilter struct {
-	selected Kind
+	charType CharType
 }
 
-func NewReadingformFilter(kind Kind) ReadingformFilter {
+func NewReadingformFilter(charType CharType) ReadingformFilter {
 	return ReadingformFilter{
-		selected: kind,
+		charType: charType,
 	}
 }
 
-func (f ReadingformFilter) filter(tokenStream *TokenStream) *TokenStream {
+func (f ReadingformFilter) Filter(tokenStream *TokenStream) *TokenStream {
 	// ローマ字に指定されていたらローマ字に変換する、それ以外ではカナに変換する
-	if f.selected == Romaji {
+	if f.charType == Romaji {
 		for i, token := range tokenStream.Tokens {
 			tokenStream.Tokens[i].Term = jaconv.ToHebon(jaconv.KatakanaToHiragana(token.Kana))
 		}
