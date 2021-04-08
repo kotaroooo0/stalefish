@@ -3,7 +3,7 @@ package stalefish
 import "strings"
 
 type CharFilter interface {
-	filter(string) string
+	Filter(string) string
 }
 
 type MappingCharFilter struct {
@@ -14,7 +14,7 @@ func NewMappingCharFilter(mapper map[string]string) *MappingCharFilter {
 	return &MappingCharFilter{mapper: mapper}
 }
 
-func (c MappingCharFilter) filter(s string) string {
+func (c *MappingCharFilter) Filter(s string) string {
 	for k, v := range c.mapper {
 		s = strings.Replace(s, k, v, -1)
 	}

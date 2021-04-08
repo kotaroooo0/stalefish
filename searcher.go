@@ -3,9 +3,20 @@ package stalefish
 type Logic int
 
 const (
-	AND Logic = iota
+	AND Logic = iota + 1
 	OR
 )
+
+func (l Logic) String() string {
+	switch l {
+	case AND:
+		return "AND"
+	case OR:
+		return "OR"
+	default:
+		return "Unknown"
+	}
+}
 
 type Searcher interface {
 	Search() ([]Document, error)

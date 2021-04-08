@@ -43,7 +43,7 @@ func TestMorphologicalTokenizerTokenize(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		if diff := cmp.Diff(tokenizer.tokenize(tt.text), tt.expected); diff != "" {
+		if diff := cmp.Diff(tokenizer.Tokenize(tt.text), tt.expected); diff != "" {
 			t.Errorf("Diff: (-got +want)\n%s", diff)
 		}
 	}

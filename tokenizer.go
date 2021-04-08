@@ -8,16 +8,16 @@ import (
 )
 
 type Tokenizer interface {
-	tokenize(string) *TokenStream
+	Tokenize(string) *TokenStream
 }
 
 type StandardTokenizer struct{}
 
-func NewStandardTokenizer() StandardTokenizer {
-	return StandardTokenizer{}
+func NewStandardTokenizer() *StandardTokenizer {
+	return &StandardTokenizer{}
 }
 
-func (t StandardTokenizer) tokenize(s string) *TokenStream {
+func (t *StandardTokenizer) Tokenize(s string) *TokenStream {
 	terms := strings.FieldsFunc(s, func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
 	})
@@ -32,17 +32,17 @@ type MorphologicalTokenizer struct {
 	morphology morphology.Morphology
 }
 
-func (t MorphologicalTokenizer) tokenize(s string) *TokenStream {
+func NewMorphologicalTokenizer(morphology morphology.Morphology) *MorphologicalTokenizer {
+	return &MorphologicalTokenizer{
+		morphology: morphology,
+	}
+}
+
+func (t *MorphologicalTokenizer) Tokenize(s string) *TokenStream {
 	mTokens := t.morphology.Analyze(s)
 	tokens := make([]Token, len(mTokens))
 	for i, t := range mTokens {
 		tokens[i] = NewToken(t.Term, setKana(t.Kana))
 	}
 	return NewTokenStream(tokens)
-}
-
-func NewMorphologicalTokenizer(morphology morphology.Morphology) MorphologicalTokenizer {
-	return MorphologicalTokenizer{
-		morphology: morphology,
-	}
 }
