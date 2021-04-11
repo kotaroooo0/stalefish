@@ -10,11 +10,11 @@ type Indexer struct {
 	InvertedIndex InvertedIndex
 }
 
-func NewIndexer(storage Storage, analyzer Analyzer, invertedIndex InvertedIndex) *Indexer {
+func NewIndexer(storage Storage, analyzer *Analyzer) *Indexer {
 	return &Indexer{
 		Storage:       storage,
-		Analyzer:      analyzer,
-		InvertedIndex: invertedIndex,
+		Analyzer:      *analyzer,
+		InvertedIndex: make(InvertedIndex),
 	}
 }
 

@@ -32,7 +32,7 @@ func TestIndexerAddDocument(t *testing.T) {
 
 	storage := NewStorageRdbImpl(db)
 	analyzer := NewAnalyzer([]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewLowercaseFilter(), NewStopWordFilter()})
-	indexer := NewIndexer(storage, analyzer, make(InvertedIndex))
+	indexer := NewIndexer(storage, analyzer)
 
 	doc1 := NewDocument("aa bb cc dd aa bb")
 	err = indexer.AddDocument(doc1)
