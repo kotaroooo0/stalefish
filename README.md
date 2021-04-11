@@ -43,7 +43,7 @@ func main() {
 	db, _ := stalefish.NewDBClient(config) // omit error handling
 	storage := stalefish.NewStorageRdbImpl(db)
 	analyzer := stalefish.NewAnalyzer([]stalefish.CharFilter{}, stalefish.StandardTokenizer{}, []stalefish.TokenFilter{stalefish.StemmerFilter{}, stalefish.LowercaseFilter{}, stalefish.StopWordFilter{}})
-	indexer := stalefish.NewIndexer(storage, analyzer, make(stalefish.InvertedIndexMap))
+	indexer := stalefish.NewIndexer(storage, analyzer)
 
 	indexer.AddDocument(stalefish.NewDocument("You can watch lots of interesting dramas on Amazon Prime."))
 	indexer.AddDocument(stalefish.NewDocument("Forest phenomena in the Amazon are a prime concern."))

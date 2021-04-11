@@ -16,7 +16,7 @@ func TestMatchAllSearch(t *testing.T) {
 
 	storage := NewStorageRdbImpl(db)
 	analyzer := NewAnalyzer([]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewLowercaseFilter(), NewStopWordFilter()})
-	indexer := NewIndexer(storage, analyzer, make(InvertedIndex))
+	indexer := NewIndexer(storage, analyzer)
 
 	doc1 := NewDocument("aa bb cc dd aa bb")
 	err = indexer.AddDocument(doc1)
@@ -56,7 +56,7 @@ func TestMatchSearch(t *testing.T) {
 
 	storage := NewStorageRdbImpl(db)
 	analyzer := NewAnalyzer([]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewLowercaseFilter(), NewStopWordFilter()})
-	indexer := NewIndexer(storage, analyzer, make(InvertedIndex))
+	indexer := NewIndexer(storage, analyzer)
 
 	doc1 := NewDocument("aa bb tt")
 	if err = indexer.AddDocument(doc1); err != nil {
@@ -129,7 +129,7 @@ func TestPhraseSearch(t *testing.T) {
 
 	storage := NewStorageRdbImpl(db)
 	analyzer := NewAnalyzer([]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewLowercaseFilter(), NewStopWordFilter()})
-	indexer := NewIndexer(storage, analyzer, make(InvertedIndex))
+	indexer := NewIndexer(storage, analyzer)
 
 	doc1 := NewDocument("aa bb cc")
 	if err = indexer.AddDocument(doc1); err != nil {
