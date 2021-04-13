@@ -224,7 +224,7 @@ func TestUpsertInvertedIndex(t *testing.T) {
 
 	inverted := InvertedIndexValue{
 		Token:          Token{ID: 12, Term: "hoge"},
-		PostingList:    NewPostings(1, []int{1, 2, 3, 4}, 4, NewPostings(3, []int{11, 22}, 2, nil)),
+		PostingList:    NewPostings(1, []uint{1, 2, 3, 4}, 4, NewPostings(3, []uint{11, 22}, 2, nil)),
 		DocsCount:      123,
 		PositionsCount: 11,
 	}
@@ -259,7 +259,7 @@ func TestGetInvertedIndexByTokenID(t *testing.T) {
 	token := Token{ID: 1, Term: "hoge"}
 	inverted := InvertedIndexValue{
 		Token:          token,
-		PostingList:    NewPostings(1, []int{1, 2, 3, 4}, 4, NewPostings(3, []int{11, 22}, 2, nil)),
+		PostingList:    NewPostings(1, []uint{1, 2, 3, 4}, 4, NewPostings(3, []uint{11, 22}, 2, nil)),
 		DocsCount:      123,
 		PositionsCount: 11,
 	}

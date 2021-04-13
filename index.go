@@ -4,7 +4,7 @@ package stalefish
 // TokenIDー>転置リストのマップ
 type InvertedIndex map[TokenID]InvertedIndexValue
 
-type TokenID int
+type TokenID uint
 
 type Token struct {
 	ID   TokenID `db:"id"`
@@ -46,8 +46,8 @@ func (ts *TokenStream) size() int {
 type InvertedIndexValue struct {
 	Token          Token     `db:"token"`
 	PostingList    *Postings `db:"posting_list"`    // トークンを含むポスティングスリスト
-	DocsCount      int       `db:"docs_count"`      // トークンを含む文書数
-	PositionsCount int       `db:"positions_count"` // 全文書内でのトークンの出現数
+	DocsCount      uint      `db:"docs_count"`      // トークンを含む文書数
+	PositionsCount uint      `db:"positions_count"` // 全文書内でのトークンの出現数
 }
 
 // 転置リストのスライス
@@ -56,12 +56,12 @@ type InvertedIndexValues []InvertedIndexValue
 // ポスティングリスト。文書IDのリンクリスト
 type Postings struct {
 	DocumentID     DocumentID // 文書のID
-	Positions      []int      // 文書中の位置情報
-	PositionsCount int        // 文書中の位置情報の数
+	Positions      []uint     // 文書中の位置情報
+	PositionsCount uint       // 文書中の位置情報の数
 	Next           *Postings
 }
 
-func NewPostings(documentID DocumentID, positions []int, positionsCount int, next *Postings) *Postings {
+func NewPostings(documentID DocumentID, positions []uint, positionsCount uint, next *Postings) *Postings {
 	return &Postings{
 		DocumentID:     documentID,
 		Positions:      positions,
