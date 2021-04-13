@@ -72,7 +72,7 @@ func (i *Indexer) AddDocument(doc Document) error {
 func (i *Indexer) updateMemoryInvertedIndexByDocument(doc Document) error {
 	tokens := i.Analyzer.Analyze(doc.Body)
 	for pos, token := range tokens.Tokens {
-		if err := i.updateMemoryInvertedIndexByToken(doc.ID, token, pos); err != nil {
+		if err := i.updateMemoryInvertedIndexByToken(doc.ID, token, uint64(pos)); err != nil {
 			return err
 		}
 	}
@@ -80,7 +80,7 @@ func (i *Indexer) updateMemoryInvertedIndexByDocument(doc Document) error {
 }
 
 // トークンからメモリ上の転置インデックスを更新する
-func (i *Indexer) updateMemoryInvertedIndexByToken(docID DocumentID, term Token, pos int) error {
+func (i *Indexer) updateMemoryInvertedIndexByToken(docID DocumentID, term Token, pos uint64) error {
 	// ストレージにIDの管理を任せる
 	i.Storage.AddToken(NewToken(term.Term))
 
@@ -93,7 +93,7 @@ func (i *Indexer) updateMemoryInvertedIndexByToken(docID DocumentID, term Token,
 	if !ok { // 対応するinvertedIndexValueがない
 		i.InvertedIndex[token.ID] = InvertedIndexValue{
 			Token:          token,
-			PostingList:    NewPostings(docID, []int{pos}, 1, nil),
+			PostingList:    NewPostings(docID, []uint64{pos}, 1, nil),
 			DocsCount:      1,
 			PositionsCount: 1,
 		}
@@ -116,14 +116,14 @@ func (i *Indexer) updateMemoryInvertedIndexByToken(docID DocumentID, term Token,
 		i.InvertedIndex[token.ID] = invertedIndexValue
 	} else { // まだ対象ドキュメントのポスティングが存在しない
 		if docID < invertedIndexValue.PostingList.DocumentID { // 追加されるポスティングのドキュメントIDが最小の時
-			invertedIndexValue.PostingList = NewPostings(docID, []int{pos}, 1, invertedIndexValue.PostingList)
+			invertedIndexValue.PostingList = NewPostings(docID, []uint64{pos}, 1, invertedIndexValue.PostingList)
 		} else { // 追加されるポスティングのドキュメントIDが最小でない時
 			// ドキュメントIDが昇順になるように挿入する場所を探索
 			var t *Postings = invertedIndexValue.PostingList
 			for t.Next != nil && t.Next.DocumentID < docID {
 				t = t.Next
 			}
-			t.push(NewPostings(docID, []int{pos}, 1, nil))
+			t.push(NewPostings(docID, []uint64{pos}, 1, nil))
 		}
 
 		invertedIndexValue.DocsCount++

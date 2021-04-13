@@ -79,12 +79,12 @@ func (s StorageRdbImpl) AddDocument(doc Document) (DocumentID, error) {
 			"body": doc.Body,
 		})
 	if err != nil {
-		return -1, errors.New(err.Error())
+		return 0, errors.New(err.Error())
 	}
 
 	insertedID, err := res.LastInsertId()
 	if err != nil {
-		return -1, errors.New(err.Error())
+		return 0, errors.New(err.Error())
 	}
 	return DocumentID(insertedID), nil
 }
@@ -96,11 +96,11 @@ func (s StorageRdbImpl) AddToken(token Token) (TokenID, error) {
 			"term": token.Term,
 		})
 	if err != nil {
-		return -1, errors.New(err.Error())
+		return 0, errors.New(err.Error())
 	}
 	insertedID, err := res.LastInsertId()
 	if err != nil {
-		return -1, errors.New(err.Error())
+		return 0, errors.New(err.Error())
 	}
 	return TokenID(insertedID), nil
 }
@@ -209,19 +209,19 @@ func dtoToInvertedIndexValue(dto InvertedIndexDto) InvertedIndexValue {
 type InvertedIndexDto struct {
 	Token          Token       `db:"token"`
 	PostingList    PostingList `db:"posting_list"`    // トークンを含むポスティングスリスト
-	DocsCount      int         `db:"docs_count"`      // トークンを含む文書数
-	PositionsCount int         `db:"positions_count"` // 全文書内でのトークンの出現数
+	DocsCount      uint64      `db:"docs_count"`      // トークンを含む文書数
+	PositionsCount uint64      `db:"positions_count"` // 全文書内でのトークンの出現数
 }
 
 type Posting struct {
 	DocumentID    DocumentID
-	Positions     []int
-	PositionCount int
+	Positions     []uint64
+	PositionCount uint64
 }
 
 type PostingList []Posting
 
-func NewPosting(DocumentID DocumentID, positions []int, positionCount int) Posting {
+func NewPosting(DocumentID DocumentID, positions []uint64, positionCount uint64) Posting {
 	return Posting{
 		DocumentID:    DocumentID,
 		Positions:     positions,

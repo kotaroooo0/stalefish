@@ -4,7 +4,7 @@ package stalefish
 // TokenIDー>転置リストのマップ
 type InvertedIndex map[TokenID]InvertedIndexValue
 
-type TokenID int
+type TokenID uint
 
 type Token struct {
 	ID   TokenID `db:"id"`
