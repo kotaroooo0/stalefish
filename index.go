@@ -50,6 +50,15 @@ type InvertedIndexValue struct {
 	PositionsCount uint64    `db:"positions_count"` // 全文書内でのトークンの出現数
 }
 
+func NewInvertedIndexValue(token Token, pl *Postings, docsCount, positionsCount uint64) InvertedIndexValue {
+	return InvertedIndexValue{
+		Token:          token,
+		PostingList:    pl,
+		DocsCount:      docsCount,
+		PositionsCount: positionsCount,
+	}
+}
+
 // 転置リストのスライス
 type InvertedIndexValues []InvertedIndexValue
 

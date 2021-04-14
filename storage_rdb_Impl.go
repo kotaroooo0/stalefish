@@ -123,22 +123,20 @@ func (s StorageRdbImpl) GetTokenByTerm(term string) (Token, error) {
 }
 
 func (s StorageRdbImpl) UpsertInvertedIndex(invertedIndexValue InvertedIndexValue) error {
-	plBuf := bytes.NewBuffer(nil)
-	if err := gob.NewEncoder(plBuf).Encode(invertedIndexValue.PostingList); err != nil {
+	encoded, err := encode(invertedIndexValue)
+	if err != nil {
 		return errors.New(err.Error())
 	}
-
-	_, err := s.DB.NamedExec(
+	_, err = s.DB.NamedExec(
 		`insert into inverted_indexes (token_id, posting_list, docs_count, positions_count)
 		values (:token_id, :posting_list, :docs_count, :positions_count)
-		on duplicate key update posting_list = :posting_list,docs_count = :docs_count,positions_count = :positions_count`,
+		on duplicate key update posting_list = :posting_list, docs_count = :docs_count, positions_count = :positions_count`,
 		map[string]interface{}{
-			"token_id":        invertedIndexValue.Token.ID,
-			"posting_list":    plBuf.Bytes(),
-			"docs_count":      invertedIndexValue.DocsCount,
-			"positions_count": invertedIndexValue.PositionsCount,
-		},
-	)
+			"token_id":        encoded.Token.ID,
+			"posting_list":    encoded.PostingList,
+			"docs_count":      encoded.DocsCount,
+			"positions_count": encoded.PositionsCount,
+		})
 	if err != nil {
 		return errors.New(err.Error())
 	}
@@ -146,10 +144,10 @@ func (s StorageRdbImpl) UpsertInvertedIndex(invertedIndexValue InvertedIndexValu
 }
 
 func (s StorageRdbImpl) GetInvertedIndexByTokenID(tokenID TokenID) (InvertedIndexValue, error) {
-	var invertedIndexDtos []InvertedIndexDto
+	var encodedInvertedIndexs []EncodedInvertedIndex
 
 	// TODO: LEFT JOINのがいいかも(?)
-	err := s.DB.Select(&invertedIndexDtos,
+	err := s.DB.Select(&encodedInvertedIndexs,
 		`select
 			tokens.id as "token.id",
 			tokens.term as "token.term",
@@ -166,35 +164,46 @@ func (s StorageRdbImpl) GetInvertedIndexByTokenID(tokenID TokenID) (InvertedInde
 		return InvertedIndexValue{}, errors.New(err.Error())
 	}
 
-	switch len(invertedIndexDtos) {
+	switch len(encodedInvertedIndexs) {
 	case 0:
 		return InvertedIndexValue{}, nil
 	case 1:
-		return dtoToInvertedIndexValue(invertedIndexDtos[0])
+		return decode(encodedInvertedIndexs[0])
 	default:
 		return InvertedIndexValue{}, errors.New("error: two or more hits(inconsistent match result)")
 	}
 }
 
-func dtoToInvertedIndexValue(dto InvertedIndexDto) (InvertedIndexValue, error) {
+func encode(inverted InvertedIndexValue) (EncodedInvertedIndex, error) {
+	plBuf := bytes.NewBuffer(nil)
+	if err := gob.NewEncoder(plBuf).Encode(inverted.PostingList); err != nil {
+		return EncodedInvertedIndex{}, errors.New(err.Error())
+	}
+	return NewEncodedInvertedIndex(inverted.Token, plBuf.Bytes(), inverted.DocsCount, inverted.PositionsCount), nil
+}
+
+func decode(encoded EncodedInvertedIndex) (InvertedIndexValue, error) {
 	pl := &Postings{}
 
-	ret := bytes.NewBuffer(dto.PostingList)
+	ret := bytes.NewBuffer(encoded.PostingList)
 	if err := gob.NewDecoder(ret).Decode(pl); err != nil {
 		return InvertedIndexValue{}, errors.New(err.Error())
 	}
-	return InvertedIndexValue{
-		Token:          dto.Token,
-		PostingList:    pl,
-		DocsCount:      dto.DocsCount,
-		PositionsCount: dto.PositionsCount,
-	}, nil
+	return NewInvertedIndexValue(encoded.Token, pl, encoded.DocsCount, encoded.PositionsCount), nil
 }
 
-// 転置リスト
-type InvertedIndexDto struct {
+type EncodedInvertedIndex struct {
 	Token          Token  `db:"token"`
 	PostingList    []byte `db:"posting_list"`    // トークンを含むポスティングスリスト
 	DocsCount      uint64 `db:"docs_count"`      // トークンを含む文書数
 	PositionsCount uint64 `db:"positions_count"` // 全文書内でのトークンの出現数
+}
+
+func NewEncodedInvertedIndex(token Token, pl []byte, docsCount, positionsCount uint64) EncodedInvertedIndex {
+	return EncodedInvertedIndex{
+		Token:          token,
+		PostingList:    pl,
+		DocsCount:      docsCount,
+		PositionsCount: positionsCount,
+	}
 }
