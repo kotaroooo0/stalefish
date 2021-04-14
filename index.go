@@ -44,10 +44,10 @@ func (ts *TokenStream) size() int {
 
 // 転置リスト
 type InvertedIndexValue struct {
-	Token          Token     `db:"token"`
-	PostingList    *Postings `db:"posting_list"`    // トークンを含むポスティングスリスト
-	DocsCount      uint64    `db:"docs_count"`      // トークンを含む文書数
-	PositionsCount uint64    `db:"positions_count"` // 全文書内でのトークンの出現数
+	Token          Token
+	PostingList    *Postings // トークンを含むポスティングスリスト
+	DocsCount      uint64    // トークンを含む文書数
+	PositionsCount uint64    // 全文書内でのトークンの出現数
 }
 
 func NewInvertedIndexValue(token Token, pl *Postings, docsCount, positionsCount uint64) InvertedIndexValue {

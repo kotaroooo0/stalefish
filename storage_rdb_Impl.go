@@ -7,6 +7,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
+
 	"github.com/pkg/errors"
 )
 
@@ -175,6 +176,14 @@ func (s StorageRdbImpl) GetInvertedIndexByTokenID(tokenID TokenID) (InvertedInde
 }
 
 func encode(inverted InvertedIndexValue) (EncodedInvertedIndex, error) {
+	var c *Postings = inverted.PostingList
+	var beforeDocumentID DocumentID = 0
+	for c != nil {
+		c.DocumentID -= beforeDocumentID
+		beforeDocumentID = c.DocumentID + beforeDocumentID
+		c = c.Next
+	}
+
 	plBuf := bytes.NewBuffer(nil)
 	if err := gob.NewEncoder(plBuf).Encode(inverted.PostingList); err != nil {
 		return EncodedInvertedIndex{}, errors.New(err.Error())
@@ -184,12 +193,20 @@ func encode(inverted InvertedIndexValue) (EncodedInvertedIndex, error) {
 
 func decode(encoded EncodedInvertedIndex) (InvertedIndexValue, error) {
 	pl := &Postings{}
-
 	ret := bytes.NewBuffer(encoded.PostingList)
 	if err := gob.NewDecoder(ret).Decode(pl); err != nil {
 		return InvertedIndexValue{}, errors.New(err.Error())
 	}
-	return NewInvertedIndexValue(encoded.Token, pl, encoded.DocsCount, encoded.PositionsCount), nil
+	inverted := NewInvertedIndexValue(encoded.Token, pl, encoded.DocsCount, encoded.PositionsCount)
+
+	var c *Postings = inverted.PostingList
+	var beforeDocumentID DocumentID = 0
+	for c != nil {
+		c.DocumentID += beforeDocumentID
+		beforeDocumentID = c.DocumentID
+		c = c.Next
+	}
+	return inverted, nil
 }
 
 type EncodedInvertedIndex struct {

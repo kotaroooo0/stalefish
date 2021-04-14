@@ -257,13 +257,12 @@ func TestGetInvertedIndexByTokenID(t *testing.T) {
 	storage := NewStorageRdbImpl(db)
 
 	token := Token{ID: 1, Term: "hoge"}
-	inverted := InvertedIndexValue{
-		Token:          token,
-		PostingList:    NewPostings(1, []uint64{1, 2, 3, 4}, 4, NewPostings(3, []uint64{11, 22}, 2, nil)),
-		DocsCount:      123,
-		PositionsCount: 11,
-	}
-
+	inverted := NewInvertedIndexValue(
+		token,
+		NewPostings(1, []uint64{1, 2, 3, 4}, 4, NewPostings(3, []uint64{11, 22}, 2, NewPostings(5, []uint64{11, 15, 22}, 3, nil))),
+		123,
+		11,
+	)
 	err = storage.UpsertInvertedIndex(inverted)
 	if err != nil {
 		t.Error(err)
@@ -278,8 +277,12 @@ func TestGetInvertedIndexByTokenID(t *testing.T) {
 		invertedIndexValue InvertedIndexValue
 	}{
 		{
-			tokenID:            TokenID(1),
-			invertedIndexValue: inverted,
+			tokenID: TokenID(1),
+			invertedIndexValue: NewInvertedIndexValue(
+				token,
+				NewPostings(1, []uint64{1, 2, 3, 4}, 4, NewPostings(3, []uint64{11, 22}, 2, NewPostings(5, []uint64{11, 15, 22}, 3, nil))),
+				123,
+				11),
 		},
 	}
 
