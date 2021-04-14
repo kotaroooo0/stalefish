@@ -61,7 +61,7 @@ func TestIndexerAddDocument(t *testing.T) {
 	}
 	expected := InvertedIndexValue{
 		Token:          Token{ID: 1, Term: "aa"},
-		PostingList:    NewPostings(1, []uint{0, 4}, 2, NewPostings(3, []uint{0, 1}, 2, nil)),
+		PostingList:    NewPostings(1, []uint64{0, 4}, 2, NewPostings(3, []uint64{0, 1}, 2, nil)),
 		DocsCount:      2,
 		PositionsCount: 4,
 	}
@@ -72,27 +72,27 @@ func TestIndexerAddDocument(t *testing.T) {
 
 func TestUpdateMemoryInvertedIndexByDocument(t *testing.T) {
 	cases := []struct {
-		doc    Document
-		output InvertedIndex
+		doc      Document
+		expected InvertedIndex
 	}{
 		{
-			doc: Document{ID: 1, Body: "int string uint string string"},
-			output: InvertedIndex{
-				3: InvertedIndexValue{
-					Token:          Token{ID: 3, Term: "int"},
-					PostingList:    NewPostings(1, []uint{0}, 1, nil),
+			doc: Document{ID: 1, Body: "ho fug piyo fug fug"},
+			expected: InvertedIndex{
+				2: InvertedIndexValue{
+					Token:          Token{ID: 2, Term: "ho"},
+					PostingList:    NewPostings(1, []uint64{0}, 1, nil),
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
-				6: InvertedIndexValue{
-					Token:          Token{ID: 6, Term: "string"},
-					PostingList:    NewPostings(1, []uint{1, 3, 4}, 3, nil),
+				3: InvertedIndexValue{
+					Token:          Token{ID: 3, Term: "fug"},
+					PostingList:    NewPostings(1, []uint64{1, 3, 4}, 3, nil),
 					DocsCount:      1,
 					PositionsCount: 3,
 				},
 				4: InvertedIndexValue{
-					Token:          Token{ID: 4, Term: "uint"},
-					PostingList:    NewPostings(1, []uint{2}, 1, nil),
+					Token:          Token{ID: 4, Term: "piyo"},
+					PostingList:    NewPostings(1, []uint64{2}, 1, nil),
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
@@ -109,7 +109,7 @@ func TestUpdateMemoryInvertedIndexByDocument(t *testing.T) {
 		if err := indexer.updateMemoryInvertedIndexByDocument(tt.doc); err != nil {
 			t.Error(err)
 		}
-		if diff := cmp.Diff(indexer.InvertedIndex, tt.output); diff != "" {
+		if diff := cmp.Diff(indexer.InvertedIndex, tt.expected); diff != "" {
 			t.Errorf("Diff: (-got +want)\n%s", diff)
 		}
 	}
@@ -119,7 +119,7 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 	cases := []struct {
 		docID    DocumentID
 		token    Token
-		pos      uint
+		pos      uint64
 		expected InvertedIndex
 	}{
 		{
@@ -130,19 +130,19 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			expected: InvertedIndex{
 				TokenID(2): InvertedIndexValue{
 					Token:          Token{ID: 2, Term: "ab", Kana: ""},
-					PostingList:    &Postings{DocumentID: 1, Positions: []uint{1}, PositionsCount: 1, Next: nil},
+					PostingList:    &Postings{DocumentID: 1, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
 				TokenID(3): InvertedIndexValue{
 					Token:          Token{ID: 3, Term: "abc", Kana: ""},
-					PostingList:    &Postings{DocumentID: 1, Positions: []uint{1}, PositionsCount: 1, Next: nil},
+					PostingList:    &Postings{DocumentID: 1, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
 				TokenID(4): InvertedIndexValue{
 					Token:          Token{ID: 4, Term: "abcd", Kana: ""},
-					PostingList:    &Postings{DocumentID: 2, Positions: []uint{1}, PositionsCount: 1, Next: nil},
+					PostingList:    &Postings{DocumentID: 2, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
@@ -156,13 +156,13 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			expected: InvertedIndex{
 				TokenID(3): InvertedIndexValue{
 					Token:          Token{ID: 3, Term: "abc", Kana: ""},
-					PostingList:    &Postings{DocumentID: 1, Positions: []uint{1, 99}, PositionsCount: 2, Next: nil},
+					PostingList:    &Postings{DocumentID: 1, Positions: []uint64{1, 99}, PositionsCount: 2, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 2,
 				},
 				TokenID(4): InvertedIndexValue{
 					Token:          Token{ID: 4, Term: "abcd", Kana: ""},
-					PostingList:    &Postings{DocumentID: 2, Positions: []uint{1}, PositionsCount: 1, Next: nil},
+					PostingList:    &Postings{DocumentID: 2, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
@@ -176,13 +176,13 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			expected: InvertedIndex{
 				TokenID(3): InvertedIndexValue{
 					Token:          Token{ID: 3, Term: "abc", Kana: ""},
-					PostingList:    &Postings{DocumentID: 1, Positions: []uint{1}, PositionsCount: 1, Next: nil},
+					PostingList:    &Postings{DocumentID: 1, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
 				TokenID(4): InvertedIndexValue{
 					Token:          Token{ID: 4, Term: "abcd", Kana: ""},
-					PostingList:    &Postings{DocumentID: 1, Positions: []uint{99}, PositionsCount: 1, Next: &Postings{DocumentID: 2, Positions: []uint{1}, PositionsCount: 1, Next: nil}},
+					PostingList:    &Postings{DocumentID: 1, Positions: []uint64{99}, PositionsCount: 1, Next: &Postings{DocumentID: 2, Positions: []uint64{1}, PositionsCount: 1, Next: nil}},
 					DocsCount:      2,
 					PositionsCount: 2,
 				},
@@ -197,13 +197,13 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			InvertedIndex: InvertedIndex{
 				TokenID(3): InvertedIndexValue{
 					Token:          Token{ID: 3, Term: "abc", Kana: ""},
-					PostingList:    &Postings{DocumentID: 1, Positions: []uint{1}, PositionsCount: 1, Next: nil},
+					PostingList:    &Postings{DocumentID: 1, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
 				TokenID(4): InvertedIndexValue{
 					Token:          Token{ID: 4, Term: "abcd", Kana: ""},
-					PostingList:    &Postings{DocumentID: 2, Positions: []uint{1}, PositionsCount: 1, Next: nil},
+					PostingList:    &Postings{DocumentID: 2, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
@@ -222,24 +222,24 @@ func TestMerge(t *testing.T) {
 	cases := []struct {
 		memoryInvertedIndex  InvertedIndexValue
 		storageInvertedIndex InvertedIndexValue
-		output               InvertedIndexValue
+		expected             InvertedIndexValue
 	}{
 		{
 			memoryInvertedIndex: InvertedIndexValue{
 				Token:          Token{ID: 3, Term: "int"},
-				PostingList:    NewPostings(1, []uint{0}, 1, NewPostings(3, []uint{0}, 1, NewPostings(4, []uint{3}, 1, nil))),
+				PostingList:    NewPostings(1, []uint64{0}, 1, NewPostings(3, []uint64{0}, 1, NewPostings(4, []uint64{3}, 1, nil))),
 				DocsCount:      3,
 				PositionsCount: 3,
 			},
 			storageInvertedIndex: InvertedIndexValue{
 				Token:          Token{ID: 3, Term: "int"},
-				PostingList:    NewPostings(2, []uint{1, 2}, 2, NewPostings(4, []uint{3}, 1, NewPostings(5, []uint{12}, 1, nil))),
+				PostingList:    NewPostings(2, []uint64{1, 2}, 2, NewPostings(4, []uint64{3}, 1, NewPostings(5, []uint64{12}, 1, nil))),
 				DocsCount:      3,
 				PositionsCount: 4,
 			},
-			output: InvertedIndexValue{
+			expected: InvertedIndexValue{
 				Token:          Token{ID: 3, Term: "int"},
-				PostingList:    NewPostings(1, []uint{0}, 1, NewPostings(2, []uint{1, 2}, 2, NewPostings(3, []uint{0}, 1, NewPostings(4, []uint{3}, 1, NewPostings(5, []uint{12}, 1, nil))))),
+				PostingList:    NewPostings(1, []uint64{0}, 1, NewPostings(2, []uint64{1, 2}, 2, NewPostings(3, []uint64{0}, 1, NewPostings(4, []uint64{3}, 1, NewPostings(5, []uint64{12}, 1, nil))))),
 				DocsCount:      5,
 				PositionsCount: 6,
 			},
@@ -247,19 +247,19 @@ func TestMerge(t *testing.T) {
 		{
 			memoryInvertedIndex: InvertedIndexValue{
 				Token:          Token{ID: 3, Term: "int"},
-				PostingList:    NewPostings(3, []uint{0}, 1, NewPostings(4, []uint{0}, 1, NewPostings(5, []uint{3}, 1, nil))),
+				PostingList:    NewPostings(3, []uint64{0}, 1, NewPostings(4, []uint64{0}, 1, NewPostings(5, []uint64{3}, 1, nil))),
 				DocsCount:      3,
 				PositionsCount: 3,
 			},
 			storageInvertedIndex: InvertedIndexValue{
 				Token:          Token{ID: 3, Term: "int"},
-				PostingList:    NewPostings(1, []uint{1, 2}, 2, NewPostings(2, []uint{3}, 1, nil)),
+				PostingList:    NewPostings(1, []uint64{1, 2}, 2, NewPostings(2, []uint64{3}, 1, nil)),
 				DocsCount:      2,
 				PositionsCount: 3,
 			},
-			output: InvertedIndexValue{
+			expected: InvertedIndexValue{
 				Token:          Token{ID: 3, Term: "int"},
-				PostingList:    NewPostings(1, []uint{1, 2}, 2, NewPostings(2, []uint{3}, 1, NewPostings(3, []uint{0}, 1, NewPostings(4, []uint{0}, 1, NewPostings(5, []uint{3}, 1, nil))))),
+				PostingList:    NewPostings(1, []uint64{1, 2}, 2, NewPostings(2, []uint64{3}, 1, NewPostings(3, []uint64{0}, 1, NewPostings(4, []uint64{0}, 1, NewPostings(5, []uint64{3}, 1, nil))))),
 				DocsCount:      5,
 				PositionsCount: 6,
 			},
@@ -267,19 +267,19 @@ func TestMerge(t *testing.T) {
 		{
 			memoryInvertedIndex: InvertedIndexValue{
 				Token:          Token{ID: 1, Term: "int"},
-				PostingList:    NewPostings(1, []uint{0, 4}, 2, nil),
+				PostingList:    NewPostings(1, []uint64{0, 4}, 2, nil),
 				DocsCount:      1,
 				PositionsCount: 2,
 			},
 			storageInvertedIndex: InvertedIndexValue{
 				Token:          Token{ID: 1, Term: "int"},
-				PostingList:    NewPostings(3, []uint{0, 1}, 2, nil),
+				PostingList:    NewPostings(3, []uint64{0, 1}, 2, nil),
 				DocsCount:      1,
 				PositionsCount: 2,
 			},
-			output: InvertedIndexValue{
+			expected: InvertedIndexValue{
 				Token:          Token{ID: 1, Term: "int"},
-				PostingList:    NewPostings(1, []uint{0, 4}, 2, NewPostings(3, []uint{0, 1}, 2, nil)),
+				PostingList:    NewPostings(1, []uint64{0, 4}, 2, NewPostings(3, []uint64{0, 1}, 2, nil)),
 				DocsCount:      2,
 				PositionsCount: 4,
 			},
@@ -290,7 +290,7 @@ func TestMerge(t *testing.T) {
 		if err != nil {
 			t.Error("error: merge failed")
 		}
-		if diff := cmp.Diff(merged, tt.output); diff != "" {
+		if diff := cmp.Diff(merged, tt.expected); diff != "" {
 			t.Errorf("Diff: (-got +want)\n%s", diff)
 		}
 	}
