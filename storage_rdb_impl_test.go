@@ -333,17 +333,17 @@ func TestCompressedIndex(t *testing.T) {
 }
 
 func createHeavyPostingList() *Postings {
-	var root *Postings = NewPostings(DocumentID(rand.Uint64()), randUint64Slice(), 99, nil)
+	var root *Postings = NewPostings(DocumentID(0), randUint64Slice(), 99, nil)
 	var p *Postings = root
-	for i := 0; i < 100; i++ {
-		p.Next = NewPostings(DocumentID(rand.Uint64()), randUint64Slice(), 99, nil)
+	for i := 0; i < 5000; i++ {
+		p.Next = NewPostings(DocumentID(i*10), randUint64Slice(), 99, nil)
 		p = p.Next
 	}
 	return root
 }
 
 func randUint64Slice() []uint64 {
-	size := 100
+	size := 3
 	ret := make([]uint64, size)
 	for i := 0; i < size; i++ {
 		ret[i] = rand.Uint64()
