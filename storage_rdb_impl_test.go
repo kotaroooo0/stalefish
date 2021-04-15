@@ -1,6 +1,8 @@
 package stalefish
 
 import (
+	"math/rand"
+	"sync"
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -295,4 +297,56 @@ func TestGetInvertedIndexByTokenID(t *testing.T) {
 			t.Errorf("Diff: (-got +want)\n%s", diff)
 		}
 	}
+}
+
+func TestCompressedIndex(t *testing.T) {
+	db, err := NewTestDBClient()
+	if err != nil {
+		t.Error(err)
+	}
+	truncateTableAll(db)
+
+	storage := NewStorageRdbImpl(db)
+	wg := &sync.WaitGroup{}
+	sem := make(chan struct{}, 100)
+	for i := 0; i < 3000; i++ {
+		sem <- struct{}{}
+
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			token := Token{ID: TokenID(id), Term: "hoge"}
+			inverted := NewInvertedIndexValue(
+				token,
+				createHeavyPostingList(),
+				1,
+				2,
+			)
+			err = storage.UpsertInvertedIndex(inverted)
+			if err != nil {
+				t.Error(err)
+			}
+		}(i)
+	}
+	wg.Wait()
+}
+
+func createHeavyPostingList() *Postings {
+	var root *Postings = NewPostings(DocumentID(rand.Uint64()), randUint64Slice(), 99, nil)
+	var p *Postings = root
+	for i := 0; i < 100; i++ {
+		p.Next = NewPostings(DocumentID(rand.Uint64()), randUint64Slice(), 99, nil)
+		p = p.Next
+	}
+	return root
+}
+
+func randUint64Slice() []uint64 {
+	size := 100
+	ret := make([]uint64, size)
+	for i := 0; i < size; i++ {
+		ret[i] = rand.Uint64()
+	}
+	return ret
 }
