@@ -1,11 +1,13 @@
 package stalefish
 
 import (
-	"encoding/json"
+	"bytes"
+	"encoding/gob"
 	"fmt"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
+
 	"github.com/pkg/errors"
 )
 
@@ -79,12 +81,12 @@ func (s StorageRdbImpl) AddDocument(doc Document) (DocumentID, error) {
 			"body": doc.Body,
 		})
 	if err != nil {
-		return -1, errors.New(err.Error())
+		return 0, errors.New(err.Error())
 	}
 
 	insertedID, err := res.LastInsertId()
 	if err != nil {
-		return -1, errors.New(err.Error())
+		return 0, errors.New(err.Error())
 	}
 	return DocumentID(insertedID), nil
 }
@@ -96,11 +98,11 @@ func (s StorageRdbImpl) AddToken(token Token) (TokenID, error) {
 			"term": token.Term,
 		})
 	if err != nil {
-		return -1, errors.New(err.Error())
+		return 0, errors.New(err.Error())
 	}
 	insertedID, err := res.LastInsertId()
 	if err != nil {
-		return -1, errors.New(err.Error())
+		return 0, errors.New(err.Error())
 	}
 	return TokenID(insertedID), nil
 }
@@ -122,22 +124,20 @@ func (s StorageRdbImpl) GetTokenByTerm(term string) (Token, error) {
 }
 
 func (s StorageRdbImpl) UpsertInvertedIndex(invertedIndexValue InvertedIndexValue) error {
-	postingsJson, err := postingsToJson(invertedIndexValue.PostingList)
+	encoded, err := encode(invertedIndexValue)
 	if err != nil {
-		return err
+		return errors.New(err.Error())
 	}
-
 	_, err = s.DB.NamedExec(
 		`insert into inverted_indexes (token_id, posting_list, docs_count, positions_count)
 		values (:token_id, :posting_list, :docs_count, :positions_count)
-		on duplicate key update posting_list = :posting_list,docs_count = :docs_count,positions_count = :positions_count`,
+		on duplicate key update posting_list = :posting_list, docs_count = :docs_count, positions_count = :positions_count`,
 		map[string]interface{}{
-			"token_id":        invertedIndexValue.Token.ID,
-			"posting_list":    postingsJson,
-			"docs_count":      invertedIndexValue.DocsCount,
-			"positions_count": invertedIndexValue.PositionsCount,
-		},
-	)
+			"token_id":        encoded.Token.ID,
+			"posting_list":    encoded.PostingList,
+			"docs_count":      encoded.DocsCount,
+			"positions_count": encoded.PositionsCount,
+		})
 	if err != nil {
 		return errors.New(err.Error())
 	}
@@ -145,9 +145,10 @@ func (s StorageRdbImpl) UpsertInvertedIndex(invertedIndexValue InvertedIndexValu
 }
 
 func (s StorageRdbImpl) GetInvertedIndexByTokenID(tokenID TokenID) (InvertedIndexValue, error) {
+	var encodedInvertedIndexs []EncodedInvertedIndex
+
 	// TODO: LEFT JOINのがいいかも(?)
-	var invertedIndexDtos []InvertedIndexDto
-	err := s.DB.Select(&invertedIndexDtos,
+	err := s.DB.Select(&encodedInvertedIndexs,
 		`select
 			tokens.id as "token.id",
 			tokens.term as "token.term",
@@ -164,80 +165,62 @@ func (s StorageRdbImpl) GetInvertedIndexByTokenID(tokenID TokenID) (InvertedInde
 		return InvertedIndexValue{}, errors.New(err.Error())
 	}
 
-	switch len(invertedIndexDtos) {
+	switch len(encodedInvertedIndexs) {
 	case 0:
 		return InvertedIndexValue{}, nil
 	case 1:
-		return dtoToInvertedIndexValue(invertedIndexDtos[0]), nil
+		return decode(encodedInvertedIndexs[0])
 	default:
 		return InvertedIndexValue{}, errors.New("error: two or more hits(inconsistent match result)")
 	}
 }
 
-func postingsToJson(p *Postings) ([]byte, error) {
-	list := make([]Posting, 0)
-	for p != nil {
-		list = append(list, NewPosting(p.DocumentID, p.Positions, p.PositionsCount))
-		p = p.Next
+func encode(inverted InvertedIndexValue) (EncodedInvertedIndex, error) {
+	var c *Postings = inverted.PostingList
+	var beforeDocumentID DocumentID = 0
+	for c != nil {
+		c.DocumentID -= beforeDocumentID
+		beforeDocumentID = c.DocumentID + beforeDocumentID
+		c = c.Next
 	}
-	return json.Marshal(list)
-}
 
-func listToPostings(list []Posting) *Postings {
-	var p *Postings = NewPostings(list[0].DocumentID, list[0].Positions, list[0].PositionCount, nil)
-	var root *Postings = p
-	for i, l := range list {
-		if i == 0 {
-			continue
-		}
-		p.Next = NewPostings(l.DocumentID, l.Positions, l.PositionCount, nil)
-		p = p.Next
+	plBuf := bytes.NewBuffer(nil)
+	if err := gob.NewEncoder(plBuf).Encode(inverted.PostingList); err != nil {
+		return EncodedInvertedIndex{}, errors.New(err.Error())
 	}
-	return root
+	return NewEncodedInvertedIndex(inverted.Token, plBuf.Bytes(), inverted.DocsCount, inverted.PositionsCount), nil
 }
 
-func dtoToInvertedIndexValue(dto InvertedIndexDto) InvertedIndexValue {
-	return InvertedIndexValue{
-		Token:          dto.Token,
-		PostingList:    listToPostings(dto.PostingList),
-		DocsCount:      dto.DocsCount,
-		PositionsCount: dto.PositionsCount,
+func decode(encoded EncodedInvertedIndex) (InvertedIndexValue, error) {
+	pl := &Postings{}
+	ret := bytes.NewBuffer(encoded.PostingList)
+	if err := gob.NewDecoder(ret).Decode(pl); err != nil {
+		return InvertedIndexValue{}, errors.New(err.Error())
 	}
-}
+	inverted := NewInvertedIndexValue(encoded.Token, pl, encoded.DocsCount, encoded.PositionsCount)
 
-// 転置リスト
-type InvertedIndexDto struct {
-	Token          Token       `db:"token"`
-	PostingList    PostingList `db:"posting_list"`    // トークンを含むポスティングスリスト
-	DocsCount      int         `db:"docs_count"`      // トークンを含む文書数
-	PositionsCount int         `db:"positions_count"` // 全文書内でのトークンの出現数
-}
-
-type Posting struct {
-	DocumentID    DocumentID
-	Positions     []int
-	PositionCount int
-}
-
-type PostingList []Posting
-
-func NewPosting(DocumentID DocumentID, positions []int, positionCount int) Posting {
-	return Posting{
-		DocumentID:    DocumentID,
-		Positions:     positions,
-		PositionCount: positionCount,
+	var c *Postings = inverted.PostingList
+	var beforeDocumentID DocumentID = 0
+	for c != nil {
+		c.DocumentID += beforeDocumentID
+		beforeDocumentID = c.DocumentID
+		c = c.Next
 	}
+	return inverted, nil
 }
 
-func (pl *PostingList) Scan(val interface{}) error {
-	switch v := val.(type) {
-	case []byte:
-		json.Unmarshal(v, &pl)
-		return nil
-	case string:
-		json.Unmarshal([]byte(v), &pl)
-		return nil
-	default:
-		return errors.New(fmt.Sprintf("unsupported type: %T", v))
+type EncodedInvertedIndex struct {
+	Token          Token  `db:"token"`
+	PostingList    []byte `db:"posting_list"`    // トークンを含むポスティングスリスト
+	DocsCount      uint64 `db:"docs_count"`      // トークンを含む文書数
+	PositionsCount uint64 `db:"positions_count"` // 全文書内でのトークンの出現数
+}
+
+func NewEncodedInvertedIndex(token Token, pl []byte, docsCount, positionsCount uint64) EncodedInvertedIndex {
+	return EncodedInvertedIndex{
+		Token:          token,
+		PostingList:    pl,
+		DocsCount:      docsCount,
+		PositionsCount: positionsCount,
 	}
 }

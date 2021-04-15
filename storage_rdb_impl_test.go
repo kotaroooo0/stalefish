@@ -1,6 +1,8 @@
 package stalefish
 
 import (
+	"math/rand"
+	"sync"
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -224,7 +226,7 @@ func TestUpsertInvertedIndex(t *testing.T) {
 
 	inverted := InvertedIndexValue{
 		Token:          Token{ID: 12, Term: "hoge"},
-		PostingList:    NewPostings(1, []int{1, 2, 3, 4}, 4, NewPostings(3, []int{11, 22}, 2, nil)),
+		PostingList:    NewPostings(1, []uint64{1, 2, 3, 4}, 4, NewPostings(3, []uint64{11, 22}, 2, nil)),
 		DocsCount:      123,
 		PositionsCount: 11,
 	}
@@ -257,13 +259,12 @@ func TestGetInvertedIndexByTokenID(t *testing.T) {
 	storage := NewStorageRdbImpl(db)
 
 	token := Token{ID: 1, Term: "hoge"}
-	inverted := InvertedIndexValue{
-		Token:          token,
-		PostingList:    NewPostings(1, []int{1, 2, 3, 4}, 4, NewPostings(3, []int{11, 22}, 2, nil)),
-		DocsCount:      123,
-		PositionsCount: 11,
-	}
-
+	inverted := NewInvertedIndexValue(
+		token,
+		NewPostings(1, []uint64{1, 2, 3, 4}, 4, NewPostings(3, []uint64{11, 22}, 2, NewPostings(5, []uint64{11, 15, 22}, 3, nil))),
+		123,
+		11,
+	)
 	err = storage.UpsertInvertedIndex(inverted)
 	if err != nil {
 		t.Error(err)
@@ -278,8 +279,12 @@ func TestGetInvertedIndexByTokenID(t *testing.T) {
 		invertedIndexValue InvertedIndexValue
 	}{
 		{
-			tokenID:            TokenID(1),
-			invertedIndexValue: inverted,
+			tokenID: TokenID(1),
+			invertedIndexValue: NewInvertedIndexValue(
+				token,
+				NewPostings(1, []uint64{1, 2, 3, 4}, 4, NewPostings(3, []uint64{11, 22}, 2, NewPostings(5, []uint64{11, 15, 22}, 3, nil))),
+				123,
+				11),
 		},
 	}
 
@@ -292,5 +297,59 @@ func TestGetInvertedIndexByTokenID(t *testing.T) {
 			t.Errorf("Diff: (-got +want)\n%s", diff)
 		}
 	}
+}
 
+// NOTE: 転置インデックスのサイズを計測するため
+func TestCompressedIndex(t *testing.T) {
+	// NOTE: テストを動かしたい時はコメントアウトする
+	return
+
+	db, err := NewTestDBClient()
+	if err != nil {
+		t.Error(err)
+	}
+	truncateTableAll(db)
+
+	storage := NewStorageRdbImpl(db)
+	wg := &sync.WaitGroup{}
+	sem := make(chan struct{}, 100)
+	for i := 0; i < 3000; i++ {
+		sem <- struct{}{}
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			token := Token{ID: TokenID(id), Term: "hoge"}
+			inverted := NewInvertedIndexValue(
+				token,
+				createHeavyPostingList(),
+				1,
+				2,
+			)
+			err = storage.UpsertInvertedIndex(inverted)
+			if err != nil {
+				t.Error(err)
+			}
+		}(i)
+	}
+	wg.Wait()
+}
+
+func createHeavyPostingList() *Postings {
+	var root *Postings = NewPostings(DocumentID(0), randUint64Slice(), 99, nil)
+	var p *Postings = root
+	for i := 0; i < 5000; i++ {
+		p.Next = NewPostings(DocumentID(i*10), randUint64Slice(), 99, nil)
+		p = p.Next
+	}
+	return root
+}
+
+func randUint64Slice() []uint64 {
+	size := 3
+	ret := make([]uint64, size)
+	for i := 0; i < size; i++ {
+		ret[i] = rand.Uint64()
+	}
+	return ret
 }

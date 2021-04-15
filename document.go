@@ -1,6 +1,6 @@
 package stalefish
 
-type DocumentID int
+type DocumentID uint64
 
 // TODO: リフレクションを利用して任意のフィールドをもつ構造体として扱いたい
 type Document struct {
