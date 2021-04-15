@@ -299,7 +299,11 @@ func TestGetInvertedIndexByTokenID(t *testing.T) {
 	}
 }
 
+// NOTE: 転置インデックスのサイズを計測するため
 func TestCompressedIndex(t *testing.T) {
+	// NOTE: テストを動かしたい時はコメントアウトする
+	return
+
 	db, err := NewTestDBClient()
 	if err != nil {
 		t.Error(err)
@@ -311,7 +315,6 @@ func TestCompressedIndex(t *testing.T) {
 	sem := make(chan struct{}, 100)
 	for i := 0; i < 3000; i++ {
 		sem <- struct{}{}
-
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
