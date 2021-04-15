@@ -124,7 +124,7 @@ func (s StorageRdbImpl) GetTokenByTerm(term string) (Token, error) {
 }
 
 func (s StorageRdbImpl) UpsertInvertedIndex(invertedIndexValue InvertedIndexValue) error {
-	encoded, err := encode(invertedIndexValue)
+	encoded, err := invertedIndexValue.encode()
 	if err != nil {
 		return errors.New(err.Error())
 	}
@@ -169,44 +169,28 @@ func (s StorageRdbImpl) GetInvertedIndexByTokenID(tokenID TokenID) (InvertedInde
 	case 0:
 		return InvertedIndexValue{}, nil
 	case 1:
-		return decode(encodedInvertedIndexs[0])
+		return encodedInvertedIndexs[0].decode()
 	default:
 		return InvertedIndexValue{}, errors.New("error: two or more hits(inconsistent match result)")
 	}
 }
 
-func encode(inverted InvertedIndexValue) (EncodedInvertedIndex, error) {
-	var c *Postings = inverted.PostingList
+func (i InvertedIndexValue) encode() (EncodedInvertedIndex, error) {
+	// 差分を取る
+	var p *Postings = i.PostingList
 	var beforeDocumentID DocumentID = 0
-	for c != nil {
-		c.DocumentID -= beforeDocumentID
-		beforeDocumentID = c.DocumentID + beforeDocumentID
-		c = c.Next
+	for p != nil {
+		p.DocumentID -= beforeDocumentID
+		beforeDocumentID = p.DocumentID + beforeDocumentID
+		p = p.Next
 	}
 
+	// Gobでシリアライズ&圧縮
 	plBuf := bytes.NewBuffer(nil)
-	if err := gob.NewEncoder(plBuf).Encode(inverted.PostingList); err != nil {
+	if err := gob.NewEncoder(plBuf).Encode(i.PostingList); err != nil {
 		return EncodedInvertedIndex{}, errors.New(err.Error())
 	}
-	return NewEncodedInvertedIndex(inverted.Token, plBuf.Bytes(), inverted.DocsCount, inverted.PositionsCount), nil
-}
-
-func decode(encoded EncodedInvertedIndex) (InvertedIndexValue, error) {
-	pl := &Postings{}
-	ret := bytes.NewBuffer(encoded.PostingList)
-	if err := gob.NewDecoder(ret).Decode(pl); err != nil {
-		return InvertedIndexValue{}, errors.New(err.Error())
-	}
-	inverted := NewInvertedIndexValue(encoded.Token, pl, encoded.DocsCount, encoded.PositionsCount)
-
-	var c *Postings = inverted.PostingList
-	var beforeDocumentID DocumentID = 0
-	for c != nil {
-		c.DocumentID += beforeDocumentID
-		beforeDocumentID = c.DocumentID
-		c = c.Next
-	}
-	return inverted, nil
+	return NewEncodedInvertedIndex(i.Token, plBuf.Bytes(), i.DocsCount, i.PositionsCount), nil
 }
 
 type EncodedInvertedIndex struct {
@@ -223,4 +207,24 @@ func NewEncodedInvertedIndex(token Token, pl []byte, docsCount, positionsCount u
 		DocsCount:      docsCount,
 		PositionsCount: positionsCount,
 	}
+}
+
+func (e EncodedInvertedIndex) decode() (InvertedIndexValue, error) {
+	// Gobでデシリアライズ
+	pl := &Postings{}
+	ret := bytes.NewBuffer(e.PostingList)
+	if err := gob.NewDecoder(ret).Decode(pl); err != nil {
+		return InvertedIndexValue{}, errors.New(err.Error())
+	}
+	inverted := NewInvertedIndexValue(e.Token, pl, e.DocsCount, e.PositionsCount)
+
+	// 差分から本来のIDへ変換
+	var c *Postings = inverted.PostingList
+	var beforeDocumentID DocumentID = 0
+	for c != nil {
+		c.DocumentID += beforeDocumentID
+		beforeDocumentID = c.DocumentID
+		c = c.Next
+	}
+	return inverted, nil
 }

@@ -247,16 +247,18 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 func isPhraseMatch(tokenStream *TokenStream, list []*Postings) bool {
 	// 相対ポジションリストを作る
 	relativePositionsList := make([][]uint64, tokenStream.size())
-	for i := range relativePositionsList {
+	for i := 0; i < tokenStream.size(); i++ {
 		relativePositionsList[i] = decrementUintSlice(list[i].Positions, uint64(i))
 	}
 
 	// 共通の要素が存在すればフレーズが存在するということになる
-	commonElements := relativePositionsList[0]
+	postitions := relativePositionsList[0]
 	for _, relativePositions := range relativePositionsList[1:] {
-		commonElements = uint64CommonElement(commonElements, relativePositions)
+		if !hasCommonElement(postitions, relativePositions) {
+			return false
+		}
 	}
-	return len(commonElements) >= 1
+	return true
 }
 
 func decrementUintSlice(s []uint64, n uint64) []uint64 {
@@ -266,14 +268,13 @@ func decrementUintSlice(s []uint64, n uint64) []uint64 {
 	return s
 }
 
-func uint64CommonElement(s1 []uint64, s2 []uint64) []uint64 {
-	ret := make([]uint64, 0)
+func hasCommonElement(s1 []uint64, s2 []uint64) bool {
 	for _, v1 := range s1 {
 		for _, v2 := range s2 {
 			if v1 == v2 {
-				ret = append(ret, v1)
+				return true
 			}
 		}
 	}
-	return ret
+	return false
 }

@@ -165,6 +165,12 @@ func TestPhraseSearch(t *testing.T) {
 		},
 		{
 			terms: NewTokenStream(
+				[]Token{NewToken("kk"), NewToken("ll"), NewToken("aa")},
+			),
+			expectedDocs: []Document{doc3},
+		},
+		{
+			terms: NewTokenStream(
 				[]Token{NewToken("aa")},
 			), expectedDocs: []Document{doc1, doc3},
 		},
