@@ -123,7 +123,7 @@ func (s StorageRdbImpl) GetTokenByTerm(term string) (Token, error) {
 	}
 }
 
-func (s StorageRdbImpl) UpsertInvertedIndex(invertedIndexValue InvertedIndexValue) error {
+func (s StorageRdbImpl) UpsertInvertedIndex(tokenID TokenID, invertedIndexValue InvertedIndexValue) error {
 	encoded, err := invertedIndexValue.encode()
 	if err != nil {
 		return errors.New(err.Error())
@@ -133,7 +133,7 @@ func (s StorageRdbImpl) UpsertInvertedIndex(invertedIndexValue InvertedIndexValu
 		values (:token_id, :posting_list, :docs_count, :positions_count)
 		on duplicate key update posting_list = :posting_list, docs_count = :docs_count, positions_count = :positions_count`,
 		map[string]interface{}{
-			"token_id":        encoded.Token.ID,
+			"token_id":        tokenID,
 			"posting_list":    encoded.PostingList,
 			"docs_count":      encoded.DocsCount,
 			"positions_count": encoded.PositionsCount,
@@ -147,18 +147,13 @@ func (s StorageRdbImpl) UpsertInvertedIndex(invertedIndexValue InvertedIndexValu
 func (s StorageRdbImpl) GetInvertedIndexByTokenID(tokenID TokenID) (InvertedIndexValue, error) {
 	var encodedInvertedIndexs []EncodedInvertedIndex
 
-	// TODO: LEFT JOINのがいいかも(?)
 	err := s.DB.Select(&encodedInvertedIndexs,
 		`select
-			tokens.id as "token.id",
-			tokens.term as "token.term",
-			inverted_indexes.posting_list as posting_list,
-			inverted_indexes.docs_count as docs_count,
-			inverted_indexes.positions_count as positions_count
+			posting_list,
+			docs_count,
+			positions_count
 		from
 			inverted_indexes
-		join
-			tokens on inverted_indexes.token_id = tokens.id
 		where
 			token_id = ?`, int(tokenID))
 	if err != nil {
@@ -190,19 +185,17 @@ func (i InvertedIndexValue) encode() (EncodedInvertedIndex, error) {
 	if err := gob.NewEncoder(plBuf).Encode(i.PostingList); err != nil {
 		return EncodedInvertedIndex{}, errors.New(err.Error())
 	}
-	return NewEncodedInvertedIndex(i.Token, plBuf.Bytes(), i.DocsCount, i.PositionsCount), nil
+	return NewEncodedInvertedIndex(plBuf.Bytes(), i.DocsCount, i.PositionsCount), nil
 }
 
 type EncodedInvertedIndex struct {
-	Token          Token  `db:"token"`
 	PostingList    []byte `db:"posting_list"`    // トークンを含むポスティングスリスト
 	DocsCount      uint64 `db:"docs_count"`      // トークンを含む文書数
 	PositionsCount uint64 `db:"positions_count"` // 全文書内でのトークンの出現数
 }
 
-func NewEncodedInvertedIndex(token Token, pl []byte, docsCount, positionsCount uint64) EncodedInvertedIndex {
+func NewEncodedInvertedIndex(pl []byte, docsCount, positionsCount uint64) EncodedInvertedIndex {
 	return EncodedInvertedIndex{
-		Token:          token,
 		PostingList:    pl,
 		DocsCount:      docsCount,
 		PositionsCount: positionsCount,
@@ -216,7 +209,7 @@ func (e EncodedInvertedIndex) decode() (InvertedIndexValue, error) {
 	if err := gob.NewDecoder(ret).Decode(pl); err != nil {
 		return InvertedIndexValue{}, errors.New(err.Error())
 	}
-	inverted := NewInvertedIndexValue(e.Token, pl, e.DocsCount, e.PositionsCount)
+	inverted := NewInvertedIndexValue(pl, e.DocsCount, e.PositionsCount)
 
 	// 差分から本来のIDへ変換
 	var c *Postings = inverted.PostingList

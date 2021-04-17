@@ -225,7 +225,6 @@ func TestUpsertInvertedIndex(t *testing.T) {
 	storage := NewStorageRdbImpl(db)
 
 	inverted := InvertedIndexValue{
-		Token:          Token{ID: 12, Term: "hoge"},
 		PostingList:    NewPostings(1, []uint64{1, 2, 3, 4}, 4, NewPostings(3, []uint64{11, 22}, 2, nil)),
 		DocsCount:      123,
 		PositionsCount: 11,
@@ -242,7 +241,7 @@ func TestUpsertInvertedIndex(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		err := storage.UpsertInvertedIndex(tt.invertedIndex)
+		err := storage.UpsertInvertedIndex(TokenID(0), tt.invertedIndex)
 		if diff := cmp.Diff(err, tt.err); diff != "" {
 			t.Errorf("Diff: (-got +want)\n%s", diff)
 		}
@@ -260,12 +259,11 @@ func TestGetInvertedIndexByTokenID(t *testing.T) {
 
 	token := Token{ID: 1, Term: "hoge"}
 	inverted := NewInvertedIndexValue(
-		token,
 		NewPostings(1, []uint64{1, 2, 3, 4}, 4, NewPostings(3, []uint64{11, 22}, 2, NewPostings(5, []uint64{11, 15, 22}, 3, nil))),
 		123,
 		11,
 	)
-	err = storage.UpsertInvertedIndex(inverted)
+	err = storage.UpsertInvertedIndex(token.ID, inverted)
 	if err != nil {
 		t.Error(err)
 	}
@@ -281,7 +279,6 @@ func TestGetInvertedIndexByTokenID(t *testing.T) {
 		{
 			tokenID: TokenID(1),
 			invertedIndexValue: NewInvertedIndexValue(
-				token,
 				NewPostings(1, []uint64{1, 2, 3, 4}, 4, NewPostings(3, []uint64{11, 22}, 2, NewPostings(5, []uint64{11, 15, 22}, 3, nil))),
 				123,
 				11),
@@ -319,14 +316,12 @@ func TestCompressedIndex(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			token := Token{ID: TokenID(id), Term: "hoge"}
 			inverted := NewInvertedIndexValue(
-				token,
 				createHeavyPostingList(),
 				1,
 				2,
 			)
-			err = storage.UpsertInvertedIndex(inverted)
+			err = storage.UpsertInvertedIndex(TokenID(id), inverted)
 			if err != nil {
 				t.Error(err)
 			}

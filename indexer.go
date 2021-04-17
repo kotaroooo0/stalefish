@@ -1,9 +1,5 @@
 package stalefish
 
-import (
-	"fmt"
-)
-
 type Indexer struct {
 	Storage       Storage
 	Analyzer      Analyzer
@@ -49,7 +45,7 @@ func (i *Indexer) AddDocument(doc Document) error {
 
 			if storageInvertIndexValue.PostingList == nil { // ストレージのポスティングリストが空の時
 				// TODO: DB接続回数が減るので、ループ後にまとめて追加する方が良い
-				i.Storage.UpsertInvertedIndex(invertedIndexValue)
+				i.Storage.UpsertInvertedIndex(tokenID, invertedIndexValue)
 			} else {
 				// ストレージ上の転置リストとメモリの転置リストをマージする
 				merged, err := merge(invertedIndexValue, storageInvertIndexValue)
@@ -58,7 +54,7 @@ func (i *Indexer) AddDocument(doc Document) error {
 				}
 				// TODO: DB接続回数が減るので、ループ後にまとめて追加する方が良い
 				// マージした転置リストをストレージに永続化する
-				i.Storage.UpsertInvertedIndex(merged)
+				i.Storage.UpsertInvertedIndex(tokenID, merged)
 			}
 		}
 
@@ -92,7 +88,6 @@ func (i *Indexer) updateMemoryInvertedIndexByToken(docID DocumentID, term Token,
 	invertedIndexValue, ok := i.InvertedIndex[token.ID]
 	if !ok { // 対応するinvertedIndexValueがない
 		i.InvertedIndex[token.ID] = InvertedIndexValue{
-			Token:          token,
 			PostingList:    NewPostings(docID, []uint64{pos}, 1, nil),
 			DocsCount:      1,
 			PositionsCount: 1,
@@ -135,13 +130,7 @@ func (i *Indexer) updateMemoryInvertedIndexByToken(docID DocumentID, term Token,
 
 // TODO: メソッドにした方がいいかも？
 func merge(memory, storage InvertedIndexValue) (InvertedIndexValue, error) {
-	// 同じトークンに対する転置リストでなければエラーを返す
-	if memory.Token.ID != storage.Token.ID || memory.Token.Term != storage.Token.Term {
-		return InvertedIndexValue{}, fmt.Errorf("error: not match inverted index")
-	}
-
 	merged := InvertedIndexValue{
-		Token:          memory.Token,
 		PostingList:    nil,
 		PositionsCount: 0,
 		DocsCount:      0,

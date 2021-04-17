@@ -7,5 +7,5 @@ type Storage interface {
 	AddToken(Token) (TokenID, error)                               // トークンを挿入する。挿入したトークンのIDを返す。
 	GetTokenByTerm(string) (Token, error)                          // 語句からトークンを取得する
 	GetInvertedIndexByTokenID(TokenID) (InvertedIndexValue, error) // トークンIDから転置リストを取得する
-	UpsertInvertedIndex(InvertedIndexValue) error                  // 転置リストを更新する
+	UpsertInvertedIndex(TokenID, InvertedIndexValue) error         // 転置リストを更新する
 }
