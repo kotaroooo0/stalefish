@@ -57,6 +57,47 @@ func NewInvertedIndexValue(pl *Postings, docsCount, positionsCount uint64) Inver
 	}
 }
 
+func (i InvertedIndexValue) Merge(target InvertedIndexValue) (InvertedIndexValue, error) {
+	merged := InvertedIndexValue{
+		PostingList:    nil,
+		PositionsCount: 0,
+		DocsCount:      0,
+	}
+
+	var smaller, larger *Postings
+	if i.PostingList.DocumentID <= target.PostingList.DocumentID {
+		merged.PostingList = i.PostingList
+		smaller, larger = i.PostingList, target.PostingList
+	} else {
+		merged.PostingList = target.PostingList
+		smaller, larger = target.PostingList, i.PostingList
+	}
+
+	for larger != nil {
+		if smaller.Next == nil {
+			smaller.Next = larger
+			break
+		}
+
+		if smaller.Next.DocumentID < larger.DocumentID {
+			smaller = smaller.Next
+		} else if smaller.Next.DocumentID > larger.DocumentID {
+			largerNext, smallerNext := larger.Next, smaller.Next
+			smaller.Next, larger.Next = larger, smallerNext
+			smaller = larger
+			larger = largerNext
+		} else if smaller.Next.DocumentID == larger.DocumentID {
+			smaller, larger = smaller.Next, larger.Next
+		}
+	}
+
+	for c := merged.PostingList; c != nil; c = c.Next {
+		merged.DocsCount += 1
+		merged.PositionsCount += c.PositionsCount
+	}
+	return merged, nil
+}
+
 // 転置リストのスライス
 type InvertedIndexValues []InvertedIndexValue
 

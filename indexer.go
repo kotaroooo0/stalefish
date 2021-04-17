@@ -1,9 +1,9 @@
 package stalefish
 
 type Indexer struct {
-	Storage       Storage
-	Analyzer      Analyzer
-	InvertedIndex InvertedIndex
+	Storage       Storage       // 永続化層
+	Analyzer      Analyzer      // 文章分割のためのアナライザ
+	InvertedIndex InvertedIndex // 転置インデックス(メモリ上)
 }
 
 func NewIndexer(storage Storage, analyzer *Analyzer) *Indexer {
@@ -14,15 +14,14 @@ func NewIndexer(storage Storage, analyzer *Analyzer) *Indexer {
 	}
 }
 
+// 0: 常にストレージへ保存
 const INDEX_SIZE_THRESHOLD = 0
 
-// TODO: Goと言えばgoroutine, 並列化をしていきたい
-// TODO: AddDocumentsも作りたい
 // 1.文書からトークンを取り出す
 // 2.トークンごとにポスティングリストを作って、それをメモリ上の転置インデックスに追加する
 // 3.メモリ上の転置インデックスがある程度のサイズになったら、ストレージ上の転置インデックスにマージする
 func (i *Indexer) AddDocument(doc Document) error {
-	// ストレージに文書を格納し、IDを取得
+	// ストレージに文書を格納しIDを取得
 	docID, err := i.Storage.AddDocument(doc)
 	if err != nil {
 		return err
@@ -48,7 +47,7 @@ func (i *Indexer) AddDocument(doc Document) error {
 				i.Storage.UpsertInvertedIndex(tokenID, invertedIndexValue)
 			} else {
 				// ストレージ上の転置リストとメモリの転置リストをマージする
-				merged, err := merge(invertedIndexValue, storageInvertIndexValue)
+				merged, err := invertedIndexValue.Merge(storageInvertIndexValue)
 				if err != nil {
 					return err
 				}
@@ -79,14 +78,13 @@ func (i *Indexer) updateMemoryInvertedIndexByDocument(doc Document) error {
 func (i *Indexer) updateMemoryInvertedIndexByToken(docID DocumentID, term Token, pos uint64) error {
 	// ストレージにIDの管理を任せる
 	i.Storage.AddToken(NewToken(term.Term))
-
 	token, err := i.Storage.GetTokenByTerm(term.Term)
 	if err != nil {
 		return err
 	}
 
 	invertedIndexValue, ok := i.InvertedIndex[token.ID]
-	if !ok { // 対応するinvertedIndexValueがない
+	if !ok { // メモリ上に対応するinvertedIndexValueがない
 		i.InvertedIndex[token.ID] = InvertedIndexValue{
 			PostingList:    NewPostings(docID, []uint64{pos}, 1, nil),
 			DocsCount:      1,
@@ -120,52 +118,9 @@ func (i *Indexer) updateMemoryInvertedIndexByToken(docID DocumentID, term Token,
 			}
 			t.push(NewPostings(docID, []uint64{pos}, 1, nil))
 		}
-
 		invertedIndexValue.DocsCount++
 		invertedIndexValue.PositionsCount++
 		i.InvertedIndex[token.ID] = invertedIndexValue
 	}
 	return nil
-}
-
-// TODO: メソッドにした方がいいかも？
-func merge(memory, storage InvertedIndexValue) (InvertedIndexValue, error) {
-	merged := InvertedIndexValue{
-		PostingList:    nil,
-		PositionsCount: 0,
-		DocsCount:      0,
-	}
-
-	var smaller, larger *Postings
-	if memory.PostingList.DocumentID <= storage.PostingList.DocumentID {
-		merged.PostingList = memory.PostingList
-		smaller, larger = memory.PostingList, storage.PostingList
-	} else {
-		merged.PostingList = storage.PostingList
-		smaller, larger = storage.PostingList, memory.PostingList
-	}
-
-	for larger != nil {
-		if smaller.Next == nil {
-			smaller.Next = larger
-			break
-		}
-
-		if smaller.Next.DocumentID < larger.DocumentID {
-			smaller = smaller.Next
-		} else if smaller.Next.DocumentID > larger.DocumentID {
-			largerNext, smallerNext := larger.Next, smaller.Next
-			smaller.Next, larger.Next = larger, smallerNext
-			smaller = larger
-			larger = largerNext
-		} else if smaller.Next.DocumentID == larger.DocumentID {
-			smaller, larger = smaller.Next, larger.Next
-		}
-	}
-
-	for c := merged.PostingList; c != nil; c = c.Next {
-		merged.DocsCount += 1
-		merged.PositionsCount += c.PositionsCount
-	}
-	return merged, nil
 }

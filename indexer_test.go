@@ -264,7 +264,7 @@ func TestMerge(t *testing.T) {
 		},
 	}
 	for _, tt := range cases {
-		merged, err := merge(tt.memoryInvertedIndex, tt.storageInvertedIndex)
+		merged, err := tt.memoryInvertedIndex.Merge(tt.storageInvertedIndex)
 		if err != nil {
 			t.Error("error: merge failed")
 		}

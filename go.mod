@@ -10,6 +10,6 @@ require (
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/kljensen/snowball v0.6.0
 	github.com/kotaroooo0/gojaconv v0.0.0-20210223133819-8a8c2bab5241
-	github.com/pkg/errors v0.9.1
 	golang.org/x/exp v0.0.0-20210220032938-85be41e4509f // indirect
+	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 )

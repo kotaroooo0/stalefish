@@ -53,22 +53,28 @@ func (ms MatchSearcher) Search() ([]Document, error) {
 	if ms.tokenStream.size() == 0 {
 		return []Document{}, nil
 	}
-	// トークンごとの転置リストを取得
-	invertedIndexValues := make(InvertedIndexValues, ms.tokenStream.size())
+
+	terms := make([]string, ms.tokenStream.size())
 	for i, t := range ms.tokenStream.Tokens {
-		// IDを取得するため
-		token, err := ms.storage.GetTokenByTerm(t.Term)
-		if err != nil {
-			return nil, err
-		}
-		// ストレージから転置リストを取得する
-		invertedIndexValue, err := ms.storage.GetInvertedIndexByTokenID(token.ID)
-		if err != nil {
-			return nil, err
-		}
-		invertedIndexValues[i] = invertedIndexValue
+		terms[i] = t.Term
 	}
-	list := make([]*Postings, ms.tokenStream.size())
+	// IDを取得するため
+	tokens, err := ms.storage.GetTokensByTerms(terms)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := make([]TokenID, len(tokens))
+	for i, t := range tokens {
+		ids[i] = t.ID
+	}
+	// ストレージから転置リストを取得する
+	invertedIndexValues, err := ms.storage.GetInvertedIndexesByTokenIDs(ids)
+	if err != nil {
+		return nil, err
+	}
+	// トークンごとの転置リストを取得
+	list := make([]*Postings, len(invertedIndexValues))
 	for i, v := range invertedIndexValues {
 		list[i] = v.PostingList
 	}
