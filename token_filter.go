@@ -31,11 +31,11 @@ type TokenFilter interface {
 
 type LowercaseFilter struct{}
 
-func NewLowercaseFilter() *LowercaseFilter {
-	return &LowercaseFilter{}
+func NewLowercaseFilter() LowercaseFilter {
+	return LowercaseFilter{}
 }
 
-func (f *LowercaseFilter) Filter(tokenStream *TokenStream) *TokenStream {
+func (f LowercaseFilter) Filter(tokenStream *TokenStream) *TokenStream {
 	r := make([]Token, tokenStream.size())
 	for i, token := range tokenStream.Tokens {
 		lower := strings.ToLower(token.Term)
@@ -46,11 +46,11 @@ func (f *LowercaseFilter) Filter(tokenStream *TokenStream) *TokenStream {
 
 type StopWordFilter struct{}
 
-func NewStopWordFilter() *StopWordFilter {
-	return &StopWordFilter{}
+func NewStopWordFilter() StopWordFilter {
+	return StopWordFilter{}
 }
 
-func (f *StopWordFilter) Filter(tokenStream *TokenStream) *TokenStream {
+func (f StopWordFilter) Filter(tokenStream *TokenStream) *TokenStream {
 	var stopwords = map[string]struct{}{
 		"a": {}, "and": {}, "be": {}, "have": {}, "i": {},
 		"in": {}, "of": {}, "that": {}, "the": {}, "to": {},
@@ -66,8 +66,8 @@ func (f *StopWordFilter) Filter(tokenStream *TokenStream) *TokenStream {
 
 type StemmerFilter struct{}
 
-func NewStemmerFilter() *StemmerFilter {
-	return &StemmerFilter{}
+func NewStemmerFilter() StemmerFilter {
+	return StemmerFilter{}
 }
 
 func (f StemmerFilter) Filter(tokenStream *TokenStream) *TokenStream {

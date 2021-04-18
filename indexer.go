@@ -6,10 +6,10 @@ type Indexer struct {
 	InvertedIndex InvertedIndex // 転置インデックス(メモリ上)
 }
 
-func NewIndexer(storage Storage, analyzer *Analyzer) *Indexer {
+func NewIndexer(storage Storage, analyzer Analyzer) *Indexer {
 	return &Indexer{
 		Storage:       storage,
-		Analyzer:      *analyzer,
+		Analyzer:      analyzer,
 		InvertedIndex: make(InvertedIndex),
 	}
 }

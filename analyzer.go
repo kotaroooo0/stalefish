@@ -6,15 +6,15 @@ type Analyzer struct {
 	TokenFilters []TokenFilter
 }
 
-func NewAnalyzer(charFilters []CharFilter, tokenizer Tokenizer, tokenFilters []TokenFilter) *Analyzer {
-	return &Analyzer{
+func NewAnalyzer(charFilters []CharFilter, tokenizer Tokenizer, tokenFilters []TokenFilter) Analyzer {
+	return Analyzer{
 		CharFilters:  charFilters,
 		Tokenizer:    tokenizer,
 		TokenFilters: tokenFilters,
 	}
 }
 
-func (a *Analyzer) Analyze(s string) *TokenStream {
+func (a Analyzer) Analyze(s string) *TokenStream {
 	for _, c := range a.CharFilters {
 		s = c.Filter(s)
 	}
