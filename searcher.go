@@ -1,5 +1,7 @@
 package stalefish
 
+import "golang.org/x/xerrors"
+
 type Logic int
 
 const (
@@ -63,20 +65,23 @@ func (ms MatchSearcher) Search() ([]Document, error) {
 	if err != nil {
 		return nil, err
 	}
+	if ms.logic == AND && len(tokens) != len(terms) {
+		return nil, xerrors.New("error: insufficient number of tokens")
+	}
 
 	ids := make([]TokenID, len(tokens))
 	for i, t := range tokens {
 		ids[i] = t.ID
 	}
 	// ストレージから転置リストを取得する
-	postingLists, err := ms.storage.GetInvertedIndexesByTokenIDs(ids)
+	inverted, err := ms.storage.GetInvertedIndexByTokenIDs(ids)
 	if err != nil {
 		return nil, err
 	}
 	// トークンごとのポスティングを取得
-	postings := make([]*Postings, len(postingLists))
-	for i, v := range postingLists {
-		postings[i] = v.Postings
+	postings := make([]*Postings, len(inverted))
+	for i, t := range tokens {
+		postings[i] = inverted[t.ID].Postings
 	}
 
 	var matchedIds []DocumentID
@@ -208,19 +213,23 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(tokens) != len(terms) {
+		return nil, xerrors.New("error: insufficient number of tokens")
+	}
+
 	ids := make([]TokenID, len(tokens))
 	for i, t := range tokens {
 		ids[i] = t.ID
 	}
 	// ストレージから転置リストを取得する
-	postingLists, err := ps.storage.GetInvertedIndexesByTokenIDs(ids)
+	inverted, err := ps.storage.GetInvertedIndexByTokenIDs(ids)
 	if err != nil {
 		return nil, err
 	}
 	// トークンごとのポスティングを取得
-	postings := make([]*Postings, len(postingLists))
-	for i, l := range postingLists {
-		postings[i] = l.Postings
+	postings := make([]*Postings, len(inverted))
+	for i, t := range tokens {
+		postings[i] = inverted[t.ID].Postings
 	}
 
 	var matchedDocumentIDs []DocumentID

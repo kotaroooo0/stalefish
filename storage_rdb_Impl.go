@@ -143,133 +143,109 @@ func (s StorageRdbImpl) GetTokensByTerms(terms []string) ([]Token, error) {
 	return tokens, nil
 }
 
-func (s StorageRdbImpl) UpsertInvertedIndex(tokenID TokenID, postingList PostingList) error {
-	encoded, err := postingList.encode()
-	if err != nil {
-		return xerrors.New(err.Error())
-	}
-	_, err = s.DB.NamedExec(
-		`insert into inverted_indexes (token_id, posting_list, docs_count, positions_count)
-		values (:token_id, :posting_list, :docs_count, :positions_count)
-		on duplicate key update posting_list = :posting_list, docs_count = :docs_count, positions_count = :positions_count`,
-		map[string]interface{}{
-			"token_id":        tokenID,
-			"posting_list":    encoded.PostingList,
-			"docs_count":      encoded.DocsCount,
-			"positions_count": encoded.PositionsCount,
-		})
-	if err != nil {
-		return xerrors.New(err.Error())
-	}
-	return nil
-}
-
-func (s StorageRdbImpl) GetInvertedIndexByTokenID(tokenID TokenID) (PostingList, error) {
-	var encodedInvertedIndexs []EncodedInvertedIndex
-	if err := s.DB.Select(&encodedInvertedIndexs,
-		`select
-			posting_list,
-			docs_count,
-			positions_count
-		from
-			inverted_indexes
-		where
-			token_id = ?`, int(tokenID)); err != nil {
-		return PostingList{}, xerrors.New(err.Error())
-	}
-
-	switch len(encodedInvertedIndexs) {
-	case 0:
-		return PostingList{}, nil
-	case 1:
-		return encodedInvertedIndexs[0].decode()
-	default:
-		return PostingList{}, xerrors.New("error: two or more hits(inconsistent match result)")
-	}
-}
-
-func (s StorageRdbImpl) GetInvertedIndexesByTokenIDs(ids []TokenID) ([]PostingList, error) {
+func (s StorageRdbImpl) GetInvertedIndexByTokenIDs(ids []TokenID) (InvertedIndex, error) {
 	if len(ids) == 0 {
-		return []PostingList{}, nil
+		return InvertedIndex{}, nil
 	}
-
 	var encoded []EncodedInvertedIndex
+
 	query, args, err := sqlx.In(
 		`select
+       		token_id,
 			posting_list,
 			docs_count,
 			positions_count
 		from
 			inverted_indexes
 		where
-			token_id in (?)
-		order by field (token_id, ?)`, ids, ids)
+			token_id in (?)`, ids)
 	if err != nil {
 		return nil, xerrors.New(err.Error())
 	}
 	if err = s.DB.Select(&encoded, query, args...); err != nil {
 		return nil, xerrors.New(err.Error())
 	}
-
-	decoded := make([]PostingList, len(encoded))
-	for i, v := range encoded {
-		vDecoded, err := v.decode()
-		if err != nil {
-			return nil, xerrors.New(err.Error())
-		}
-		decoded[i] = vDecoded
-	}
-	return decoded, nil
+	// decoded, _ := encoded.decode()
+	return decode(encoded)
 }
 
-func (i PostingList) encode() (EncodedInvertedIndex, error) {
-	// 差分を取る
-	var p *Postings = i.Postings
-	var beforeDocumentID DocumentID = 0
-	for p != nil {
-		p.DocumentID -= beforeDocumentID
-		beforeDocumentID = p.DocumentID + beforeDocumentID
-		p = p.Next
+func (s StorageRdbImpl) UpsertInvertedIndex(inverted InvertedIndex) error {
+	encoded, err := inverted.encode()
+	if err != nil {
+		return xerrors.New(err.Error())
 	}
 
-	// Gobでシリアライズ&圧縮
-	plBuf := bytes.NewBuffer(nil)
-	if err := gob.NewEncoder(plBuf).Encode(i.Postings); err != nil {
-		return EncodedInvertedIndex{}, xerrors.New(err.Error())
+	// NOTE: bulk upsertできない?
+	for _, v := range encoded {
+		_, err := s.DB.NamedExec(
+			`insert into inverted_indexes (token_id, posting_list, docs_count, positions_count)
+			values (:token_id, :posting_list, :docs_count, :positions_count)
+			on duplicate key update posting_list = :posting_list, docs_count = :docs_count, positions_count = :positions_count`, v)
+		if err != nil {
+			return xerrors.New(err.Error())
+		}
 	}
-	return NewEncodedInvertedIndex(plBuf.Bytes(), i.DocsCount, i.PositionsCount), nil
+	return nil
+}
+
+func (i InvertedIndex) encode() ([]EncodedInvertedIndex, error) {
+	encoded := make([]EncodedInvertedIndex, 0)
+	for k, v := range i {
+		// 差分を取る
+		var p *Postings = v.Postings
+		var beforeDocumentID DocumentID = 0
+		for p != nil {
+			p.DocumentID -= beforeDocumentID
+			beforeDocumentID = p.DocumentID + beforeDocumentID
+			p = p.Next
+		}
+
+		// Gobでシリアライズ&圧縮
+		plBuf := bytes.NewBuffer(nil)
+		if err := gob.NewEncoder(plBuf).Encode(v.Postings); err != nil {
+			return nil, xerrors.New(err.Error())
+		}
+		encoded = append(encoded, NewEncodedInvertedIndex(k, plBuf.Bytes(), v.DocsCount, v.PositionsCount))
+	}
+	return encoded, nil
 }
 
 type EncodedInvertedIndex struct {
-	PostingList    []byte `db:"posting_list"`    // トークンを含むポスティングスリスト
-	DocsCount      uint64 `db:"docs_count"`      // トークンを含む文書数
-	PositionsCount uint64 `db:"positions_count"` // 全文書内でのトークンの出現数
+	TokenID        TokenID `db:"token_id"`        // トークンID
+	PostingList    []byte  `db:"posting_list"`    // トークンを含むポスティングスリスト
+	DocsCount      uint64  `db:"docs_count"`      // トークンを含む文書数
+	PositionsCount uint64  `db:"positions_count"` // 全文書内でのトークンの出現数
 }
 
-func NewEncodedInvertedIndex(pl []byte, docsCount, positionsCount uint64) EncodedInvertedIndex {
+func NewEncodedInvertedIndex(id TokenID, pl []byte, docsCount, positionsCount uint64) EncodedInvertedIndex {
 	return EncodedInvertedIndex{
+		TokenID:        id,
 		PostingList:    pl,
 		DocsCount:      docsCount,
 		PositionsCount: positionsCount,
 	}
 }
 
-func (e EncodedInvertedIndex) decode() (PostingList, error) {
-	// Gobでデシリアライズ
-	pl := &Postings{}
-	ret := bytes.NewBuffer(e.PostingList)
-	if err := gob.NewDecoder(ret).Decode(pl); err != nil {
-		return PostingList{}, xerrors.New(err.Error())
-	}
-	inverted := NewPostingList(pl, e.DocsCount, e.PositionsCount)
+func decode(e []EncodedInvertedIndex) (InvertedIndex, error) {
+	m := make(map[TokenID]PostingList)
+	for _, encoded := range e {
+		// Gobでデシリアライズ
+		p := &Postings{}
+		ret := bytes.NewBuffer(encoded.PostingList)
+		if err := gob.NewDecoder(ret).Decode(p); err != nil {
+			return nil, xerrors.New(err.Error())
+		}
+		pl := NewPostingList(p, encoded.DocsCount, encoded.PositionsCount)
 
-	// 差分から本来のIDへ変換
-	var c *Postings = inverted.Postings
-	var beforeDocumentID DocumentID = 0
-	for c != nil {
-		c.DocumentID += beforeDocumentID
-		beforeDocumentID = c.DocumentID
-		c = c.Next
+		// 差分から本来のIDへ変換
+		var c *Postings = pl.Postings
+		var beforeDocumentID DocumentID = 0
+		for c != nil {
+			c.DocumentID += beforeDocumentID
+			beforeDocumentID = c.DocumentID
+			c = c.Next
+		}
+		m[encoded.TokenID] = pl
 	}
-	return inverted, nil
+	return m, nil
 }

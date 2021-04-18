@@ -7,8 +7,9 @@ import (
 )
 
 func TestAnalyze(t *testing.T) {
-	morphologicalTokenizer := NewMorphologicalTokenizer(NewKagomeMock())
+	t.Parallel()
 
+	morphologicalTokenizer := NewMorphologicalTokenizer(NewKagomeMock())
 	cases := []struct {
 		analyzer Analyzer
 		text     string

@@ -25,6 +25,7 @@ func (k *kagomeMock) Analyze(text string) []morphology.MorphologyToken {
 }
 
 func TestMorphologicalTokenizerTokenize(t *testing.T) {
+	t.Parallel()
 	tokenizer := NewMorphologicalTokenizer(NewKagomeMock())
 	cases := []struct {
 		text     string

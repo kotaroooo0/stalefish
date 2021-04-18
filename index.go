@@ -4,6 +4,10 @@ package stalefish
 // TokenIDー>転置リストのマップ
 type InvertedIndex map[TokenID]PostingList
 
+func NewInvertedIndex(m map[TokenID]PostingList) InvertedIndex {
+	return InvertedIndex(m)
+}
+
 // 転置リスト
 type PostingList struct {
 	Postings       *Postings // トークンを含むポスティングスリスト
@@ -19,13 +23,19 @@ func NewPostingList(pl *Postings, docsCount, positionsCount uint64) PostingList 
 	}
 }
 
-func (i PostingList) Merge(target PostingList) (PostingList, error) {
+func (i PostingList) Merge(target PostingList) PostingList {
+	if i.Postings == nil {
+		return target
+	}
+	if target.Postings == nil {
+		return i
+	}
+
 	merged := PostingList{
 		Postings:       nil,
 		PositionsCount: 0,
 		DocsCount:      0,
 	}
-
 	var smaller, larger *Postings
 	if i.Postings.DocumentID <= target.Postings.DocumentID {
 		merged.Postings = i.Postings
@@ -57,7 +67,7 @@ func (i PostingList) Merge(target PostingList) (PostingList, error) {
 		merged.DocsCount += 1
 		merged.PositionsCount += c.PositionsCount
 	}
-	return merged, nil
+	return merged
 }
 
 // ポスティング(文書IDのリンクリスト)

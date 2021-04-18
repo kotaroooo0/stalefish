@@ -33,30 +33,25 @@ func (i *Indexer) AddDocument(doc Document) error {
 		return err
 	}
 
+	ids := make([]TokenID, len(i.InvertedIndex))
+	for i := range i.InvertedIndex {
+		ids = append(ids, i)
+	}
+	// マージ元の転置リストをストレージから読み出す
+	storageInvertedIndex, err := i.Storage.GetInvertedIndexByTokenIDs(ids)
+	if err != nil {
+		return err
+	}
+
 	// ストレージ上の転置インデックスにマージする
 	if len(i.InvertedIndex) >= INDEX_SIZE_THRESHOLD {
 		for tokenID, postingList := range i.InvertedIndex {
-			// マージ元の転置リストをストレージから読み出す
-			storagePostingList, err := i.Storage.GetInvertedIndexByTokenID(tokenID)
-			if err != nil {
-				return err
-			}
-
-			if storagePostingList.Postings == nil { // ストレージのポスティングリストが空の時
-				// TODO: DB接続回数が減るので、ループ後にまとめて追加する方が良い
-				i.Storage.UpsertInvertedIndex(tokenID, postingList)
-			} else {
-				// ストレージ上の転置リストとメモリの転置リストをマージする
-				merged, err := postingList.Merge(storagePostingList)
-				if err != nil {
-					return err
-				}
-				// TODO: DB接続回数が減るので、ループ後にまとめて追加する方が良い
-				// マージした転置リストをストレージに永続化する
-				i.Storage.UpsertInvertedIndex(tokenID, merged)
-			}
+			storagePostingList := storageInvertedIndex[tokenID]
+			i.InvertedIndex[tokenID] = postingList.Merge(storagePostingList)
 		}
-
+		if err := i.Storage.UpsertInvertedIndex(i.InvertedIndex); err != nil {
+			return err
+		}
 		// メモリの転置インデックスをリセット
 		i.InvertedIndex = InvertedIndex{}
 	}
