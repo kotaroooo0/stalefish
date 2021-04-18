@@ -39,7 +39,7 @@ func (f LowercaseFilter) Filter(tokenStream *TokenStream) *TokenStream {
 	r := make([]Token, tokenStream.size())
 	for i, token := range tokenStream.Tokens {
 		lower := strings.ToLower(token.Term)
-		r[i] = NewToken(lower, setKana(token.Kana))
+		r[i] = NewToken(lower)
 	}
 	return NewTokenStream(r)
 }
@@ -74,7 +74,7 @@ func (f StemmerFilter) Filter(tokenStream *TokenStream) *TokenStream {
 	r := make([]Token, tokenStream.size())
 	for i, token := range tokenStream.Tokens {
 		stemmed := english.Stem(token.Term, false)
-		r[i] = NewToken(stemmed, setKana(token.Kana))
+		r[i] = NewToken(stemmed)
 	}
 	return NewTokenStream(r)
 }

@@ -21,9 +21,9 @@ func (t *StandardTokenizer) Tokenize(s string) *TokenStream {
 	terms := strings.FieldsFunc(s, func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
 	})
-	tokens := make([]Token, 0)
-	for _, term := range terms {
-		tokens = append(tokens, NewToken(term))
+	tokens := make([]Token, len(terms))
+	for i, term := range terms {
+		tokens[i] = NewToken(term)
 	}
 	return NewTokenStream(tokens)
 }
