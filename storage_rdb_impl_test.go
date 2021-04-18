@@ -11,7 +11,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// TODO: DBを叩きに行ってるいるのでモックする
 func NewTestDBClient() (*sqlx.DB, error) {
 	config := NewDBConfig("root", "password", "127.0.0.1", "3306", "stalefish")
 	return NewDBClient(config)
@@ -224,14 +223,14 @@ func TestUpsertInvertedIndex(t *testing.T) {
 	truncateTableAll(db)
 	storage := NewStorageRdbImpl(db)
 
-	inverted := InvertedIndexValue{
-		PostingList:    NewPostings(1, []uint64{1, 2, 3, 4}, 4, NewPostings(3, []uint64{11, 22}, 2, nil)),
+	inverted := PostingList{
+		Postings:       NewPostings(1, []uint64{1, 2, 3, 4}, 4, NewPostings(3, []uint64{11, 22}, 2, nil)),
 		DocsCount:      123,
 		PositionsCount: 11,
 	}
 
 	cases := []struct {
-		invertedIndex InvertedIndexValue
+		invertedIndex PostingList
 		err           error
 	}{
 		{
@@ -258,7 +257,7 @@ func TestGetInvertedIndexByTokenID(t *testing.T) {
 	storage := NewStorageRdbImpl(db)
 
 	token := Token{ID: 1, Term: "hoge"}
-	inverted := NewInvertedIndexValue(
+	inverted := NewPostingList(
 		NewPostings(1, []uint64{1, 2, 3, 4}, 4, NewPostings(3, []uint64{11, 22}, 2, NewPostings(5, []uint64{11, 15, 22}, 3, nil))),
 		123,
 		11,
@@ -273,12 +272,12 @@ func TestGetInvertedIndexByTokenID(t *testing.T) {
 	}
 
 	cases := []struct {
-		tokenID            TokenID
-		invertedIndexValue InvertedIndexValue
+		tokenID     TokenID
+		postingList PostingList
 	}{
 		{
 			tokenID: TokenID(1),
-			invertedIndexValue: NewInvertedIndexValue(
+			postingList: NewPostingList(
 				NewPostings(1, []uint64{1, 2, 3, 4}, 4, NewPostings(3, []uint64{11, 22}, 2, NewPostings(5, []uint64{11, 15, 22}, 3, nil))),
 				123,
 				11),
@@ -290,7 +289,7 @@ func TestGetInvertedIndexByTokenID(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if diff := cmp.Diff(actual, tt.invertedIndexValue); diff != "" {
+		if diff := cmp.Diff(actual, tt.postingList); diff != "" {
 			t.Errorf("Diff: (-got +want)\n%s", diff)
 		}
 	}
@@ -316,8 +315,8 @@ func TestCompressedIndex(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			inverted := NewInvertedIndexValue(
-				createHeavyPostingList(),
+			inverted := NewPostingList(
+				createHeavyPostings(),
 				1,
 				2,
 			)
@@ -330,7 +329,7 @@ func TestCompressedIndex(t *testing.T) {
 	wg.Wait()
 }
 
-func createHeavyPostingList() *Postings {
+func createHeavyPostings() *Postings {
 	var root *Postings = NewPostings(DocumentID(0), randUint64Slice(), 99, nil)
 	var p *Postings = root
 	for i := 0; i < 5000; i++ {

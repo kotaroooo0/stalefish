@@ -69,62 +69,62 @@ func (ms MatchSearcher) Search() ([]Document, error) {
 		ids[i] = t.ID
 	}
 	// ストレージから転置リストを取得する
-	invertedIndexValues, err := ms.storage.GetInvertedIndexesByTokenIDs(ids)
+	postingLists, err := ms.storage.GetInvertedIndexesByTokenIDs(ids)
 	if err != nil {
 		return nil, err
 	}
-	// トークンごとの転置リストを取得
-	list := make([]*Postings, len(invertedIndexValues))
-	for i, v := range invertedIndexValues {
-		list[i] = v.PostingList
+	// トークンごとのポスティングを取得
+	postings := make([]*Postings, len(postingLists))
+	for i, v := range postingLists {
+		postings[i] = v.Postings
 	}
 
 	var matchedIds []DocumentID
 	if ms.logic == AND {
-		matchedIds = andMatch(list)
+		matchedIds = andMatch(postings)
 	} else if ms.logic == OR {
-		matchedIds = orMatch(list)
+		matchedIds = orMatch(postings)
 	}
 	return ms.storage.GetDocuments(matchedIds)
 }
 
 // AND検索
-func andMatch(list []*Postings) []DocumentID {
+func andMatch(postings []*Postings) []DocumentID {
 	var ids []DocumentID = make([]DocumentID, 0)
-	for notAllNil(list) {
-		if isSameDocumentId(list) {
-			ids = append(ids, list[0].DocumentID)
-			for i := range list {
-				list[i] = list[i].Next
+	for notAllNil(postings) {
+		if isSameDocumentId(postings) {
+			ids = append(ids, postings[0].DocumentID)
+			for i := range postings {
+				postings[i] = postings[i].Next
 			}
 			continue
 		}
-		idx := minIdx(list)
-		list[idx] = list[idx].Next
+		idx := minIdx(postings)
+		postings[idx] = postings[idx].Next
 	}
 	return ids
 }
 
 // OR検索
-func orMatch(list []*Postings) []DocumentID {
+func orMatch(postings []*Postings) []DocumentID {
 	var ids []DocumentID = make([]DocumentID, 0)
-	for !allNil(list) {
-		for i, l := range list {
+	for !allNil(postings) {
+		for i, l := range postings {
 			if l == nil {
 				continue
 			}
 			ids = append(ids, l.DocumentID)
-			list[i] = list[i].Next
+			postings[i] = postings[i].Next
 		}
 	}
 	return uniqueDocumentId(ids)
 }
 
 // 最小のドキュメントIDを持つポスティングリストのインデックス
-func minIdx(list []*Postings) int {
+func minIdx(postings []*Postings) int {
 	min := 0
-	for i := 1; i < len(list); i++ {
-		if list[min].DocumentID > list[i].DocumentID {
+	for i := 1; i < len(postings); i++ {
+		if postings[min].DocumentID > postings[i].DocumentID {
 			min = i
 		}
 	}
@@ -132,9 +132,9 @@ func minIdx(list []*Postings) int {
 }
 
 // スライスに含まれる全てのポスティングリストが指すキュメントIDが同じかどうか
-func isSameDocumentId(list []*Postings) bool {
-	for i := 0; i < len(list)-1; i++ {
-		if list[i].DocumentID != list[i+1].DocumentID {
+func isSameDocumentId(postings []*Postings) bool {
+	for i := 0; i < len(postings)-1; i++ {
+		if postings[i].DocumentID != postings[i+1].DocumentID {
 			return false
 		}
 	}
@@ -142,8 +142,8 @@ func isSameDocumentId(list []*Postings) bool {
 }
 
 // 全てのポスティングリストがnilではない
-func notAllNil(list []*Postings) bool {
-	for _, p := range list {
+func notAllNil(postings []*Postings) bool {
+	for _, p := range postings {
 		if p == nil {
 			return false
 		}
@@ -152,8 +152,8 @@ func notAllNil(list []*Postings) bool {
 }
 
 // 全てのポスティングリストがnil
-func allNil(list []*Postings) bool {
-	for _, p := range list {
+func allNil(postings []*Postings) bool {
+	for _, p := range postings {
 		if p != nil {
 			return false
 		}
@@ -199,45 +199,49 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 		return []Document{}, nil
 	}
 
-	// トークンごとの転置リストを取得
-	invertedIndexValues := make(InvertedIndexValues, ps.tokenStream.size())
+	terms := make([]string, ps.tokenStream.size())
 	for i, t := range ps.tokenStream.Tokens {
-		// IDを取得するため
-		token, err := ps.storage.GetTokenByTerm(t.Term)
-		if err != nil {
-			return nil, err
-		}
-		// ストレージから転置リストを取得する
-		invertedIndexValue, err := ps.storage.GetInvertedIndexByTokenID(token.ID)
-		if err != nil {
-			return nil, err
-		}
-		invertedIndexValues[i] = invertedIndexValue
+		terms[i] = t.Term
 	}
-	list := make([]*Postings, ps.tokenStream.size())
-	for i, v := range invertedIndexValues {
-		list[i] = v.PostingList
+	// IDを取得するため
+	tokens, err := ps.storage.GetTokensByTerms(terms)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]TokenID, len(tokens))
+	for i, t := range tokens {
+		ids[i] = t.ID
+	}
+	// ストレージから転置リストを取得する
+	postingLists, err := ps.storage.GetInvertedIndexesByTokenIDs(ids)
+	if err != nil {
+		return nil, err
+	}
+	// トークンごとのポスティングを取得
+	postings := make([]*Postings, len(postingLists))
+	for i, l := range postingLists {
+		postings[i] = l.Postings
 	}
 
 	var matchedDocumentIDs []DocumentID
 	for {
-		if isSameDocumentId(list) { // カーソルが指す全てのDocIDが等しい時
+		if isSameDocumentId(postings) { // カーソルが指す全てのDocIDが等しい時
 			// フレーズが等しければ結果に追加
-			if isPhraseMatch(ps.tokenStream, list) {
-				matchedDocumentIDs = append(matchedDocumentIDs, list[0].DocumentID)
+			if isPhraseMatch(ps.tokenStream, postings) {
+				matchedDocumentIDs = append(matchedDocumentIDs, postings[0].DocumentID)
 			}
 
 			// カーソルを全て動かす
-			for i := range list {
-				list[i] = list[i].Next
+			for i := range postings {
+				postings[i] = postings[i].Next
 			}
 		} else {
 			// 一番小さいカーソルを動かす
-			idx := minIdx(list)
-			list[idx] = list[idx].Next
+			idx := minIdx(postings)
+			postings[idx] = postings[idx].Next
 		}
 
-		if !notAllNil(list) {
+		if !notAllNil(postings) {
 			break
 		}
 	}
@@ -250,11 +254,11 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 //	[7],
 // ]
 // が与えられて、相対ポジションに変換してintスライス間で共通する要素があるか判定する
-func isPhraseMatch(tokenStream *TokenStream, list []*Postings) bool {
+func isPhraseMatch(tokenStream *TokenStream, postings []*Postings) bool {
 	// 相対ポジションリストを作る
 	relativePositionsList := make([][]uint64, tokenStream.size())
 	for i := 0; i < tokenStream.size(); i++ {
-		relativePositionsList[i] = decrementUintSlice(list[i].Positions, uint64(i))
+		relativePositionsList[i] = decrementUintSlice(postings[i].Positions, uint64(i))
 	}
 
 	// 共通の要素が存在すればフレーズが存在するということになる

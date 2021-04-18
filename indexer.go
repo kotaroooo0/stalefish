@@ -35,19 +35,19 @@ func (i *Indexer) AddDocument(doc Document) error {
 
 	// ストレージ上の転置インデックスにマージする
 	if len(i.InvertedIndex) >= INDEX_SIZE_THRESHOLD {
-		for tokenID, invertedIndexValue := range i.InvertedIndex {
+		for tokenID, postingList := range i.InvertedIndex {
 			// マージ元の転置リストをストレージから読み出す
-			storageInvertIndexValue, err := i.Storage.GetInvertedIndexByTokenID(tokenID)
+			storagePostingList, err := i.Storage.GetInvertedIndexByTokenID(tokenID)
 			if err != nil {
 				return err
 			}
 
-			if storageInvertIndexValue.PostingList == nil { // ストレージのポスティングリストが空の時
+			if storagePostingList.Postings == nil { // ストレージのポスティングリストが空の時
 				// TODO: DB接続回数が減るので、ループ後にまとめて追加する方が良い
-				i.Storage.UpsertInvertedIndex(tokenID, invertedIndexValue)
+				i.Storage.UpsertInvertedIndex(tokenID, postingList)
 			} else {
 				// ストレージ上の転置リストとメモリの転置リストをマージする
-				merged, err := invertedIndexValue.Merge(storageInvertIndexValue)
+				merged, err := postingList.Merge(storagePostingList)
 				if err != nil {
 					return err
 				}
@@ -67,7 +67,7 @@ func (i *Indexer) AddDocument(doc Document) error {
 func (i *Indexer) updateMemoryInvertedIndexByDocument(doc Document) error {
 	tokens := i.Analyzer.Analyze(doc.Body)
 	for pos, token := range tokens.Tokens {
-		if err := i.updateMemoryInvertedIndexByToken(doc.ID, token, uint64(pos)); err != nil {
+		if err := i.updateMemoryPostingListByToken(doc.ID, token, uint64(pos)); err != nil {
 			return err
 		}
 	}
@@ -75,7 +75,7 @@ func (i *Indexer) updateMemoryInvertedIndexByDocument(doc Document) error {
 }
 
 // トークンからメモリ上の転置インデックスを更新する
-func (i *Indexer) updateMemoryInvertedIndexByToken(docID DocumentID, term Token, pos uint64) error {
+func (i *Indexer) updateMemoryPostingListByToken(docID DocumentID, term Token, pos uint64) error {
 	// ストレージにIDの管理を任せる
 	i.Storage.AddToken(NewToken(term.Term))
 	token, err := i.Storage.GetTokenByTerm(term.Term)
@@ -83,10 +83,10 @@ func (i *Indexer) updateMemoryInvertedIndexByToken(docID DocumentID, term Token,
 		return err
 	}
 
-	invertedIndexValue, ok := i.InvertedIndex[token.ID]
-	if !ok { // メモリ上に対応するinvertedIndexValueがない
-		i.InvertedIndex[token.ID] = InvertedIndexValue{
-			PostingList:    NewPostings(docID, []uint64{pos}, 1, nil),
+	postingList, ok := i.InvertedIndex[token.ID]
+	if !ok { // メモリ上に対応するポスティングリストがない
+		i.InvertedIndex[token.ID] = PostingList{
+			Postings:       NewPostings(docID, []uint64{pos}, 1, nil),
 			DocsCount:      1,
 			PositionsCount: 1,
 		}
@@ -96,7 +96,7 @@ func (i *Indexer) updateMemoryInvertedIndexByToken(docID DocumentID, term Token,
 	// ドキュメントに対応するポスティングが存在するかどうか
 	// p == nilになる前にループ終了: 存在する
 	// p == nilまでループが回る: 存在しない
-	var p *Postings = invertedIndexValue.PostingList
+	var p *Postings = postingList.Postings
 	for p != nil && p.DocumentID != docID {
 		p = p.Next
 	}
@@ -105,22 +105,22 @@ func (i *Indexer) updateMemoryInvertedIndexByToken(docID DocumentID, term Token,
 		p.Positions = append(p.Positions, pos)
 		p.PositionsCount++
 
-		invertedIndexValue.PositionsCount++
-		i.InvertedIndex[token.ID] = invertedIndexValue
+		postingList.PositionsCount++
+		i.InvertedIndex[token.ID] = postingList
 	} else { // まだ対象ドキュメントのポスティングが存在しない
-		if docID < invertedIndexValue.PostingList.DocumentID { // 追加されるポスティングのドキュメントIDが最小の時
-			invertedIndexValue.PostingList = NewPostings(docID, []uint64{pos}, 1, invertedIndexValue.PostingList)
+		if docID < postingList.Postings.DocumentID { // 追加されるポスティングのドキュメントIDが最小の時
+			postingList.Postings = NewPostings(docID, []uint64{pos}, 1, postingList.Postings)
 		} else { // 追加されるポスティングのドキュメントIDが最小でない時
 			// ドキュメントIDが昇順になるように挿入する場所を探索
-			var t *Postings = invertedIndexValue.PostingList
+			var t *Postings = postingList.Postings
 			for t.Next != nil && t.Next.DocumentID < docID {
 				t = t.Next
 			}
-			t.push(NewPostings(docID, []uint64{pos}, 1, nil))
+			t.Push(NewPostings(docID, []uint64{pos}, 1, nil))
 		}
-		invertedIndexValue.DocsCount++
-		invertedIndexValue.PositionsCount++
-		i.InvertedIndex[token.ID] = invertedIndexValue
+		postingList.DocsCount++
+		postingList.PositionsCount++
+		i.InvertedIndex[token.ID] = postingList
 	}
 	return nil
 }

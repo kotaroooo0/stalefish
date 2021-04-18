@@ -59,8 +59,8 @@ func TestIndexerAddDocument(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	expected := InvertedIndexValue{
-		PostingList:    NewPostings(1, []uint64{0, 4}, 2, NewPostings(3, []uint64{0, 1}, 2, nil)),
+	expected := PostingList{
+		Postings:       NewPostings(1, []uint64{0, 4}, 2, NewPostings(3, []uint64{0, 1}, 2, nil)),
 		DocsCount:      2,
 		PositionsCount: 4,
 	}
@@ -77,18 +77,18 @@ func TestUpdateMemoryInvertedIndexByDocument(t *testing.T) {
 		{
 			doc: Document{ID: 1, Body: "ho fug piyo fug fug"},
 			expected: InvertedIndex{
-				2: InvertedIndexValue{
-					PostingList:    NewPostings(1, []uint64{0}, 1, nil),
+				2: PostingList{
+					Postings:       NewPostings(1, []uint64{0}, 1, nil),
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
-				3: InvertedIndexValue{
-					PostingList:    NewPostings(1, []uint64{1, 3, 4}, 3, nil),
+				3: PostingList{
+					Postings:       NewPostings(1, []uint64{1, 3, 4}, 3, nil),
 					DocsCount:      1,
 					PositionsCount: 3,
 				},
-				4: InvertedIndexValue{
-					PostingList:    NewPostings(1, []uint64{2}, 1, nil),
+				4: PostingList{
+					Postings:       NewPostings(1, []uint64{2}, 1, nil),
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
@@ -119,23 +119,23 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 		expected InvertedIndex
 	}{
 		{
-			// 対応するinvertedIndexValueがない
+			// 対応するポスティングリストがない
 			docID: 1,
 			token: NewToken("ab"),
 			pos:   1,
 			expected: InvertedIndex{
-				TokenID(2): InvertedIndexValue{
-					PostingList:    &Postings{DocumentID: 1, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
+				TokenID(2): PostingList{
+					Postings:       &Postings{DocumentID: 1, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
-				TokenID(3): InvertedIndexValue{
-					PostingList:    &Postings{DocumentID: 1, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
+				TokenID(3): PostingList{
+					Postings:       &Postings{DocumentID: 1, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
-				TokenID(4): InvertedIndexValue{
-					PostingList:    &Postings{DocumentID: 2, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
+				TokenID(4): PostingList{
+					Postings:       &Postings{DocumentID: 2, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
@@ -147,13 +147,13 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			token: NewToken("abc"),
 			pos:   99,
 			expected: InvertedIndex{
-				TokenID(3): InvertedIndexValue{
-					PostingList:    &Postings{DocumentID: 1, Positions: []uint64{1, 99}, PositionsCount: 2, Next: nil},
+				TokenID(3): PostingList{
+					Postings:       &Postings{DocumentID: 1, Positions: []uint64{1, 99}, PositionsCount: 2, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 2,
 				},
-				TokenID(4): InvertedIndexValue{
-					PostingList:    &Postings{DocumentID: 2, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
+				TokenID(4): PostingList{
+					Postings:       &Postings{DocumentID: 2, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
@@ -165,13 +165,13 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			token: NewToken("abcd"),
 			pos:   99,
 			expected: InvertedIndex{
-				TokenID(3): InvertedIndexValue{
-					PostingList:    &Postings{DocumentID: 1, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
+				TokenID(3): PostingList{
+					Postings:       &Postings{DocumentID: 1, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
-				TokenID(4): InvertedIndexValue{
-					PostingList:    &Postings{DocumentID: 1, Positions: []uint64{99}, PositionsCount: 1, Next: &Postings{DocumentID: 2, Positions: []uint64{1}, PositionsCount: 1, Next: nil}},
+				TokenID(4): PostingList{
+					Postings:       &Postings{DocumentID: 1, Positions: []uint64{99}, PositionsCount: 1, Next: &Postings{DocumentID: 2, Positions: []uint64{1}, PositionsCount: 1, Next: nil}},
 					DocsCount:      2,
 					PositionsCount: 2,
 				},
@@ -184,19 +184,19 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			Storage:  TestStorage{},
 			Analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
 			InvertedIndex: InvertedIndex{
-				TokenID(3): InvertedIndexValue{
-					PostingList:    &Postings{DocumentID: 1, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
+				TokenID(3): PostingList{
+					Postings:       &Postings{DocumentID: 1, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
-				TokenID(4): InvertedIndexValue{
-					PostingList:    &Postings{DocumentID: 2, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
+				TokenID(4): PostingList{
+					Postings:       &Postings{DocumentID: 2, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
 					DocsCount:      1,
 					PositionsCount: 1,
 				},
 			},
 		}
-		if err := indexer.updateMemoryInvertedIndexByToken(tt.docID, tt.token, tt.pos); err != nil {
+		if err := indexer.updateMemoryPostingListByToken(tt.docID, tt.token, tt.pos); err != nil {
 			t.Error(err)
 		}
 		if diff := cmp.Diff(indexer.InvertedIndex, tt.expected); diff != "" {
@@ -207,57 +207,57 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 
 func TestMerge(t *testing.T) {
 	cases := []struct {
-		memoryInvertedIndex  InvertedIndexValue
-		storageInvertedIndex InvertedIndexValue
-		expected             InvertedIndexValue
+		memoryInvertedIndex  PostingList
+		storageInvertedIndex PostingList
+		expected             PostingList
 	}{
 		{
-			memoryInvertedIndex: InvertedIndexValue{
-				PostingList:    NewPostings(1, []uint64{0}, 1, NewPostings(3, []uint64{0}, 1, NewPostings(4, []uint64{3}, 1, nil))),
+			memoryInvertedIndex: PostingList{
+				Postings:       NewPostings(1, []uint64{0}, 1, NewPostings(3, []uint64{0}, 1, NewPostings(4, []uint64{3}, 1, nil))),
 				DocsCount:      3,
 				PositionsCount: 3,
 			},
-			storageInvertedIndex: InvertedIndexValue{
-				PostingList:    NewPostings(2, []uint64{1, 2}, 2, NewPostings(4, []uint64{3}, 1, NewPostings(5, []uint64{12}, 1, nil))),
+			storageInvertedIndex: PostingList{
+				Postings:       NewPostings(2, []uint64{1, 2}, 2, NewPostings(4, []uint64{3}, 1, NewPostings(5, []uint64{12}, 1, nil))),
 				DocsCount:      3,
 				PositionsCount: 4,
 			},
-			expected: InvertedIndexValue{
-				PostingList:    NewPostings(1, []uint64{0}, 1, NewPostings(2, []uint64{1, 2}, 2, NewPostings(3, []uint64{0}, 1, NewPostings(4, []uint64{3}, 1, NewPostings(5, []uint64{12}, 1, nil))))),
+			expected: PostingList{
+				Postings:       NewPostings(1, []uint64{0}, 1, NewPostings(2, []uint64{1, 2}, 2, NewPostings(3, []uint64{0}, 1, NewPostings(4, []uint64{3}, 1, NewPostings(5, []uint64{12}, 1, nil))))),
 				DocsCount:      5,
 				PositionsCount: 6,
 			},
 		},
 		{
-			memoryInvertedIndex: InvertedIndexValue{
-				PostingList:    NewPostings(3, []uint64{0}, 1, NewPostings(4, []uint64{0}, 1, NewPostings(5, []uint64{3}, 1, nil))),
+			memoryInvertedIndex: PostingList{
+				Postings:       NewPostings(3, []uint64{0}, 1, NewPostings(4, []uint64{0}, 1, NewPostings(5, []uint64{3}, 1, nil))),
 				DocsCount:      3,
 				PositionsCount: 3,
 			},
-			storageInvertedIndex: InvertedIndexValue{
-				PostingList:    NewPostings(1, []uint64{1, 2}, 2, NewPostings(2, []uint64{3}, 1, nil)),
+			storageInvertedIndex: PostingList{
+				Postings:       NewPostings(1, []uint64{1, 2}, 2, NewPostings(2, []uint64{3}, 1, nil)),
 				DocsCount:      2,
 				PositionsCount: 3,
 			},
-			expected: InvertedIndexValue{
-				PostingList:    NewPostings(1, []uint64{1, 2}, 2, NewPostings(2, []uint64{3}, 1, NewPostings(3, []uint64{0}, 1, NewPostings(4, []uint64{0}, 1, NewPostings(5, []uint64{3}, 1, nil))))),
+			expected: PostingList{
+				Postings:       NewPostings(1, []uint64{1, 2}, 2, NewPostings(2, []uint64{3}, 1, NewPostings(3, []uint64{0}, 1, NewPostings(4, []uint64{0}, 1, NewPostings(5, []uint64{3}, 1, nil))))),
 				DocsCount:      5,
 				PositionsCount: 6,
 			},
 		},
 		{
-			memoryInvertedIndex: InvertedIndexValue{
-				PostingList:    NewPostings(1, []uint64{0, 4}, 2, nil),
+			memoryInvertedIndex: PostingList{
+				Postings:       NewPostings(1, []uint64{0, 4}, 2, nil),
 				DocsCount:      1,
 				PositionsCount: 2,
 			},
-			storageInvertedIndex: InvertedIndexValue{
-				PostingList:    NewPostings(3, []uint64{0, 1}, 2, nil),
+			storageInvertedIndex: PostingList{
+				Postings:       NewPostings(3, []uint64{0, 1}, 2, nil),
 				DocsCount:      1,
 				PositionsCount: 2,
 			},
-			expected: InvertedIndexValue{
-				PostingList:    NewPostings(1, []uint64{0, 4}, 2, NewPostings(3, []uint64{0, 1}, 2, nil)),
+			expected: PostingList{
+				Postings:       NewPostings(1, []uint64{0, 4}, 2, NewPostings(3, []uint64{0, 1}, 2, nil)),
 				DocsCount:      2,
 				PositionsCount: 4,
 			},
