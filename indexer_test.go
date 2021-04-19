@@ -62,7 +62,7 @@ func TestIndexerAddDocument(t *testing.T) {
 	expected := NewInvertedIndex(
 		map[TokenID]PostingList{
 			token.ID: NewPostingList(
-				NewPostings(1, []uint64{0, 4}, 2, NewPostings(3, []uint64{0, 1}, 2, nil)), 2, 4),
+				NewPostings(1, []uint64{0, 4}, NewPostings(3, []uint64{0, 1}, nil))),
 		},
 	)
 	if diff := cmp.Diff(actual, expected); diff != "" {
@@ -79,19 +79,13 @@ func TestUpdateMemoryInvertedIndexByDocument(t *testing.T) {
 			doc: Document{ID: 1, Body: "ho fug piyo fug fug"},
 			expected: InvertedIndex{
 				2: PostingList{
-					Postings:       NewPostings(1, []uint64{0}, 1, nil),
-					DocsCount:      1,
-					PositionsCount: 1,
+					Postings: NewPostings(1, []uint64{0}, nil),
 				},
 				3: PostingList{
-					Postings:       NewPostings(1, []uint64{1, 3, 4}, 3, nil),
-					DocsCount:      1,
-					PositionsCount: 3,
+					Postings: NewPostings(1, []uint64{1, 3, 4}, nil),
 				},
 				4: PostingList{
-					Postings:       NewPostings(1, []uint64{2}, 1, nil),
-					DocsCount:      1,
-					PositionsCount: 1,
+					Postings: NewPostings(1, []uint64{2}, nil),
 				},
 			},
 		},
@@ -126,19 +120,13 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			pos:   1,
 			expected: InvertedIndex{
 				TokenID(2): PostingList{
-					Postings:       &Postings{DocumentID: 1, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
-					DocsCount:      1,
-					PositionsCount: 1,
+					Postings: &Postings{DocumentID: 1, Positions: []uint64{1}, Next: nil},
 				},
 				TokenID(3): PostingList{
-					Postings:       &Postings{DocumentID: 1, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
-					DocsCount:      1,
-					PositionsCount: 1,
+					Postings: &Postings{DocumentID: 1, Positions: []uint64{1}, Next: nil},
 				},
 				TokenID(4): PostingList{
-					Postings:       &Postings{DocumentID: 2, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
-					DocsCount:      1,
-					PositionsCount: 1,
+					Postings: &Postings{DocumentID: 2, Positions: []uint64{1}, Next: nil},
 				},
 			},
 		},
@@ -149,14 +137,10 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			pos:   99,
 			expected: InvertedIndex{
 				TokenID(3): PostingList{
-					Postings:       &Postings{DocumentID: 1, Positions: []uint64{1, 99}, PositionsCount: 2, Next: nil},
-					DocsCount:      1,
-					PositionsCount: 2,
+					Postings: &Postings{DocumentID: 1, Positions: []uint64{1, 99}, Next: nil},
 				},
 				TokenID(4): PostingList{
-					Postings:       &Postings{DocumentID: 2, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
-					DocsCount:      1,
-					PositionsCount: 1,
+					Postings: &Postings{DocumentID: 2, Positions: []uint64{1}, Next: nil},
 				},
 			},
 		},
@@ -167,14 +151,10 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			pos:   99,
 			expected: InvertedIndex{
 				TokenID(3): PostingList{
-					Postings:       &Postings{DocumentID: 1, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
-					DocsCount:      1,
-					PositionsCount: 1,
+					Postings: &Postings{DocumentID: 1, Positions: []uint64{1}, Next: nil},
 				},
 				TokenID(4): PostingList{
-					Postings:       &Postings{DocumentID: 1, Positions: []uint64{99}, PositionsCount: 1, Next: &Postings{DocumentID: 2, Positions: []uint64{1}, PositionsCount: 1, Next: nil}},
-					DocsCount:      2,
-					PositionsCount: 2,
+					Postings: &Postings{DocumentID: 1, Positions: []uint64{99}, Next: &Postings{DocumentID: 2, Positions: []uint64{1}, Next: nil}},
 				},
 			},
 		},
@@ -186,14 +166,10 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 			Analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
 			InvertedIndex: InvertedIndex{
 				TokenID(3): PostingList{
-					Postings:       &Postings{DocumentID: 1, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
-					DocsCount:      1,
-					PositionsCount: 1,
+					Postings: &Postings{DocumentID: 1, Positions: []uint64{1}, Next: nil},
 				},
 				TokenID(4): PostingList{
-					Postings:       &Postings{DocumentID: 2, Positions: []uint64{1}, PositionsCount: 1, Next: nil},
-					DocsCount:      1,
-					PositionsCount: 1,
+					Postings: &Postings{DocumentID: 2, Positions: []uint64{1}, Next: nil},
 				},
 			},
 		}
