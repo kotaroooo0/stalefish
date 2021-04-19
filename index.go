@@ -10,12 +10,16 @@ func NewInvertedIndex(m map[TokenID]PostingList) InvertedIndex {
 
 // 転置リスト
 type PostingList struct {
-	Postings *Postings // トークンを含むポスティングスリスト
+	Postings       *Postings // トークンを含むポスティングスリスト
+	DocsCount      uint64    // トークンを含む文書数
+	PositionsCount uint64    // 全文書内でのトークンの出現数
 }
 
-func NewPostingList(pl *Postings) PostingList {
+func NewPostingList(pl *Postings, docsCount, positionsCount uint64) PostingList {
 	return PostingList{
-		Postings: pl,
+		Postings:       pl,
+		DocsCount:      docsCount,
+		PositionsCount: positionsCount,
 	}
 }
 
@@ -28,7 +32,9 @@ func (i PostingList) Merge(target PostingList) PostingList {
 	}
 
 	merged := PostingList{
-		Postings: nil,
+		Postings:       nil,
+		PositionsCount: 0,
+		DocsCount:      0,
 	}
 	var smaller, larger *Postings
 	if i.Postings.DocumentID <= target.Postings.DocumentID {
@@ -56,21 +62,28 @@ func (i PostingList) Merge(target PostingList) PostingList {
 			smaller, larger = smaller.Next, larger.Next
 		}
 	}
+
+	for c := merged.Postings; c != nil; c = c.Next {
+		merged.DocsCount += 1
+		merged.PositionsCount += c.PositionsCount
+	}
 	return merged
 }
 
 // ポスティング(文書IDのリンクリスト)
 type Postings struct {
-	DocumentID DocumentID // 文書のID
-	Positions  []uint64   // 文書中の位置情報
-	Next       *Postings  // 次のポスティングへのポインタ
+	DocumentID     DocumentID // 文書のID
+	Positions      []uint64   // 文書中の位置情報
+	PositionsCount uint64     // 文書中の位置情報の数
+	Next           *Postings  // 次のポスティングへのポインタ
 }
 
-func NewPostings(documentID DocumentID, positions []uint64, next *Postings) *Postings {
+func NewPostings(documentID DocumentID, positions []uint64, positionsCount uint64, next *Postings) *Postings {
 	return &Postings{
-		DocumentID: documentID,
-		Positions:  positions,
-		Next:       next,
+		DocumentID:     documentID,
+		Positions:      positions,
+		PositionsCount: positionsCount,
+		Next:           next,
 	}
 }
 

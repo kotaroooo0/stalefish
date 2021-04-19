@@ -328,8 +328,9 @@ func TestGetInvertedIndexByTokenIDs(t *testing.T) {
 	inverted := NewInvertedIndex(
 		map[TokenID]PostingList{
 			TokenID(777): NewPostingList(
-				NewPostings(1, []uint64{1, 2, 3, 4}, NewPostings(100, []uint64{11, 22}, NewPostings(250, []uint64{11, 15, 22}, nil))),
-			),
+				NewPostings(1, []uint64{1, 2, 3, 4}, 4, NewPostings(100, []uint64{11, 22}, 2, NewPostings(250, []uint64{11, 15, 22}, 3, nil))),
+				99,
+				999),
 		},
 	)
 
@@ -347,8 +348,9 @@ func TestGetInvertedIndexByTokenIDs(t *testing.T) {
 			expected: NewInvertedIndex(
 				map[TokenID]PostingList{
 					TokenID(777): NewPostingList(
-						NewPostings(1, []uint64{1, 2, 3, 4}, NewPostings(100, []uint64{11, 22}, NewPostings(250, []uint64{11, 15, 22}, nil))),
-					),
+						NewPostings(1, []uint64{1, 2, 3, 4}, 4, NewPostings(100, []uint64{11, 22}, 2, NewPostings(250, []uint64{11, 15, 22}, 3, nil))),
+						99,
+						999),
 				},
 			),
 		},
@@ -376,10 +378,14 @@ func TestUpsertInvertedIndex(t *testing.T) {
 	inverted := NewInvertedIndex(
 		map[TokenID]PostingList{
 			TokenID(777): NewPostingList(
-				NewPostings(1, []uint64{1, 2, 3, 4}, NewPostings(3, []uint64{11, 22}, NewPostings(5, []uint64{11, 15, 22}, nil))),
+				NewPostings(1, []uint64{1, 2, 3, 4}, 4, NewPostings(3, []uint64{11, 22}, 2, NewPostings(5, []uint64{11, 15, 22}, 3, nil))),
+				99,
+				999,
 			),
 			TokenID(888): NewPostingList(
-				NewPostings(4, []uint64{3, 4}, NewPostings(634, []uint64{11, 22, 444}, NewPostings(421421, []uint64{11, 22}, nil))),
+				NewPostings(4, []uint64{3, 4}, 3, NewPostings(634, []uint64{11, 22, 444}, 3, NewPostings(421421, []uint64{11, 22}, 2, nil))),
+				99,
+				999,
 			),
 		},
 	)
@@ -430,6 +436,8 @@ func TestCompressedIndex(t *testing.T) {
 			inverted := NewInvertedIndex(map[TokenID]PostingList{
 				TokenID(id): NewPostingList(
 					createHeavyPostings(),
+					1,
+					2,
 				),
 			},
 			)
@@ -442,10 +450,10 @@ func TestCompressedIndex(t *testing.T) {
 }
 
 func createHeavyPostings() *Postings {
-	var root *Postings = NewPostings(DocumentID(0), randUint64Slice(), nil)
+	var root *Postings = NewPostings(DocumentID(0), randUint64Slice(), 99, nil)
 	var p *Postings = root
 	for i := 0; i < 5000; i++ {
-		p.Next = NewPostings(DocumentID(i*10), randUint64Slice(), nil)
+		p.Next = NewPostings(DocumentID(i*10), randUint64Slice(), 99, nil)
 		p = p.Next
 	}
 	return root
