@@ -39,6 +39,6 @@ create table tokens (
 drop table if exists inverted_indexes;
 create table inverted_indexes (
     token_id integer not null primary key,
-    posting_list longblob not null,
+    posting_list longblob not null
 );
 
