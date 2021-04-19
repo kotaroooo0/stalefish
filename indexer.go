@@ -81,9 +81,7 @@ func (i *Indexer) updateMemoryPostingListByToken(docID DocumentID, term Token, p
 	postingList, ok := i.InvertedIndex[token.ID]
 	if !ok { // メモリ上に対応するポスティングリストがない
 		i.InvertedIndex[token.ID] = PostingList{
-			Postings:       NewPostings(docID, []uint64{pos}, 1, nil),
-			DocsCount:      1,
-			PositionsCount: 1,
+			Postings: NewPostings(docID, []uint64{pos}, nil),
 		}
 		return nil
 	}
@@ -98,23 +96,18 @@ func (i *Indexer) updateMemoryPostingListByToken(docID DocumentID, term Token, p
 
 	if p != nil { // 既に対象ドキュメントのポスティングが存在する
 		p.Positions = append(p.Positions, pos)
-		p.PositionsCount++
-
-		postingList.PositionsCount++
 		i.InvertedIndex[token.ID] = postingList
 	} else { // まだ対象ドキュメントのポスティングが存在しない
 		if docID < postingList.Postings.DocumentID { // 追加されるポスティングのドキュメントIDが最小の時
-			postingList.Postings = NewPostings(docID, []uint64{pos}, 1, postingList.Postings)
+			postingList.Postings = NewPostings(docID, []uint64{pos}, postingList.Postings)
 		} else { // 追加されるポスティングのドキュメントIDが最小でない時
 			// ドキュメントIDが昇順になるように挿入する場所を探索
 			var t *Postings = postingList.Postings
 			for t.Next != nil && t.Next.DocumentID < docID {
 				t = t.Next
 			}
-			t.Push(NewPostings(docID, []uint64{pos}, 1, nil))
+			t.Push(NewPostings(docID, []uint64{pos}, nil))
 		}
-		postingList.DocsCount++
-		postingList.PositionsCount++
 		i.InvertedIndex[token.ID] = postingList
 	}
 	return nil

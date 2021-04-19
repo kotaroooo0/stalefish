@@ -205,7 +205,7 @@ func (i InvertedIndex) encode() ([]EncodedInvertedIndex, error) {
 		if err := gob.NewEncoder(plBuf).Encode(v.Postings); err != nil {
 			return nil, xerrors.New(err.Error())
 		}
-		encoded = append(encoded, NewEncodedInvertedIndex(k, plBuf.Bytes(), v.DocsCount, v.PositionsCount))
+		encoded = append(encoded, NewEncodedInvertedIndex(k, plBuf.Bytes()))
 	}
 	return encoded, nil
 }
@@ -217,12 +217,10 @@ type EncodedInvertedIndex struct {
 	PositionsCount uint64  `db:"positions_count"` // 全文書内でのトークンの出現数
 }
 
-func NewEncodedInvertedIndex(id TokenID, pl []byte, docsCount, positionsCount uint64) EncodedInvertedIndex {
+func NewEncodedInvertedIndex(id TokenID, pl []byte) EncodedInvertedIndex {
 	return EncodedInvertedIndex{
-		TokenID:        id,
-		PostingList:    pl,
-		DocsCount:      docsCount,
-		PositionsCount: positionsCount,
+		TokenID:     id,
+		PostingList: pl,
 	}
 }
 
@@ -235,7 +233,7 @@ func decode(e []EncodedInvertedIndex) (InvertedIndex, error) {
 		if err := gob.NewDecoder(ret).Decode(p); err != nil {
 			return nil, xerrors.New(err.Error())
 		}
-		pl := NewPostingList(p, encoded.DocsCount, encoded.PositionsCount)
+		pl := NewPostingList(p)
 
 		// 差分から本来のIDへ変換
 		var c *Postings = pl.Postings
