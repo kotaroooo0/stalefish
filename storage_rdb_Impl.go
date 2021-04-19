@@ -152,9 +152,7 @@ func (s StorageRdbImpl) GetInvertedIndexByTokenIDs(ids []TokenID) (InvertedIndex
 	query, args, err := sqlx.In(
 		`select
        		token_id,
-			posting_list,
-			docs_count,
-			positions_count
+			posting_list
 		from
 			inverted_indexes
 		where
@@ -178,9 +176,9 @@ func (s StorageRdbImpl) UpsertInvertedIndex(inverted InvertedIndex) error {
 	// NOTE: bulk upsertできない?
 	for _, v := range encoded {
 		_, err := s.DB.NamedExec(
-			`insert into inverted_indexes (token_id, posting_list, docs_count, positions_count)
-			values (:token_id, :posting_list, :docs_count, :positions_count)
-			on duplicate key update posting_list = :posting_list, docs_count = :docs_count, positions_count = :positions_count`, v)
+			`insert into inverted_indexes (token_id, posting_list)
+			values (:token_id, :posting_list)
+			on duplicate key update posting_list = :posting_list`, v)
 		if err != nil {
 			return xerrors.New(err.Error())
 		}
@@ -211,10 +209,8 @@ func (i InvertedIndex) encode() ([]EncodedInvertedIndex, error) {
 }
 
 type EncodedInvertedIndex struct {
-	TokenID        TokenID `db:"token_id"`        // トークンID
-	PostingList    []byte  `db:"posting_list"`    // トークンを含むポスティングスリスト
-	DocsCount      uint64  `db:"docs_count"`      // トークンを含む文書数
-	PositionsCount uint64  `db:"positions_count"` // 全文書内でのトークンの出現数
+	TokenID     TokenID `db:"token_id"`     // トークンID
+	PostingList []byte  `db:"posting_list"` // トークンを含むポスティングスリスト
 }
 
 func NewEncodedInvertedIndex(id TokenID, pl []byte) EncodedInvertedIndex {
