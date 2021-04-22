@@ -5,13 +5,13 @@
 
 stalefish is a toy full text search engine written in Go.
 MySQL is used for data persistence now.
-Only English sentences can be analyzed.
 Document has only one field.
 
 ## Specification
 
 - Indexing Documents
 - Search by MatchAllQuery
+- Search by MatchQuery(AND,OR)
 - Search by PhraseQuery
 - Multiple types of analyzers
 
@@ -67,15 +67,11 @@ func main() {
 
 ## Development Task
 
-- [ ] Using linked list as posting list
-- [ ] Compressing storage inverted indexes
-- [ ] Implementing MatchQuery
 - [ ] Scoring with TF/IDF
 - [ ] Sorting
 - [ ] Setting document fields
 - [ ] Replacing MySQL with another DB
 - [ ] Preformance Tuning
-- [ ] Implementing tokenizer(Japanese morphological analysis, Ngram)
 
 ## Author
 
