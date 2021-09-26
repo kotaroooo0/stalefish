@@ -37,6 +37,11 @@ func (i *Indexer) AddDocument(doc Document) error {
 	for i := range i.InvertedIndex {
 		ids = append(ids, i)
 	}
+
+	if len(i.InvertedIndex) < INDEX_SIZE_THRESHOLD {
+		return nil
+	}
+
 	// マージ元の転置リストをストレージから読み出す
 	storageInvertedIndex, err := i.Storage.GetInvertedIndexByTokenIDs(ids)
 	if err != nil {
@@ -44,17 +49,15 @@ func (i *Indexer) AddDocument(doc Document) error {
 	}
 
 	// ストレージ上の転置インデックスにマージする
-	if len(i.InvertedIndex) >= INDEX_SIZE_THRESHOLD {
-		for tokenID, postingList := range i.InvertedIndex {
-			storagePostingList := storageInvertedIndex[tokenID]
-			i.InvertedIndex[tokenID] = postingList.Merge(storagePostingList)
-		}
-		if err := i.Storage.UpsertInvertedIndex(i.InvertedIndex); err != nil {
-			return err
-		}
-		// メモリの転置インデックスをリセット
-		i.InvertedIndex = InvertedIndex{}
+	for tokenID, postingList := range i.InvertedIndex {
+		storagePostingList := storageInvertedIndex[tokenID]
+		i.InvertedIndex[tokenID] = postingList.Merge(storagePostingList)
 	}
+	if err := i.Storage.UpsertInvertedIndex(i.InvertedIndex); err != nil {
+		return err
+	}
+	// メモリの転置インデックスをリセット
+	i.InvertedIndex = InvertedIndex{}
 	return nil
 }
 
@@ -72,7 +75,9 @@ func (i *Indexer) updateMemoryInvertedIndexByDocument(doc Document) error {
 // トークンからメモリ上の転置インデックスを更新する
 func (i *Indexer) updateMemoryPostingListByToken(docID DocumentID, term Token, pos uint64) error {
 	// ストレージにIDの管理を任せる
-	i.Storage.AddToken(NewToken(term.Term))
+	if _, err := i.Storage.AddToken(NewToken(term.Term)); err != nil {
+		return err
+	}
 	token, err := i.Storage.GetTokenByTerm(term.Term)
 	if err != nil {
 		return err

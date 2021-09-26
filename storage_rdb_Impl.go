@@ -2,12 +2,13 @@ package stalefish
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/gob"
 	"fmt"
 
+	"github.com/go-sql-driver/mysql"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	"golang.org/x/xerrors"
 )
 
 func NewDBClient(dbConfig *DBConfig) (*sqlx.DB, error) {
@@ -16,7 +17,7 @@ func NewDBClient(dbConfig *DBConfig) (*sqlx.DB, error) {
 		fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", dbConfig.User, dbConfig.Password, dbConfig.Addr, dbConfig.Port, dbConfig.DB),
 	)
 	if err != nil {
-		return nil, xerrors.New(err.Error())
+		return nil, err
 	}
 	return db, nil
 }
@@ -52,7 +53,7 @@ func NewDBConfig(user, password, addr, port, db string) *DBConfig {
 func (s StorageRdbImpl) GetAllDocuments() ([]Document, error) {
 	var docs []Document
 	if err := s.DB.Select(&docs, `select * from documents`); err != nil {
-		return nil, xerrors.New(err.Error())
+		return nil, err
 	}
 	return docs, nil
 }
@@ -68,11 +69,11 @@ func (s StorageRdbImpl) GetDocuments(ids []DocumentID) ([]Document, error) {
 
 	sql, params, err := sqlx.In(`select * from documents where id in (?)`, intDocIDs)
 	if err != nil {
-		return nil, xerrors.New(err.Error())
+		return nil, err
 	}
 	var docs []Document
 	if err = s.DB.Select(&docs, sql, params...); err != nil {
-		return nil, xerrors.New(err.Error())
+		return nil, err
 	}
 	return docs, nil
 }
@@ -83,12 +84,12 @@ func (s StorageRdbImpl) AddDocument(doc Document) (DocumentID, error) {
 			"body": doc.Body,
 		})
 	if err != nil {
-		return 0, xerrors.New(err.Error())
+		return 0, err
 	}
 
 	insertedID, err := res.LastInsertId()
 	if err != nil {
-		return 0, xerrors.New(err.Error())
+		return 0, err
 	}
 	return DocumentID(insertedID), nil
 }
@@ -100,30 +101,30 @@ func (s StorageRdbImpl) AddToken(token Token) (TokenID, error) {
 			"term": token.Term,
 		})
 	if err != nil {
-		return 0, xerrors.New(err.Error())
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+			if mysqlErr.Number == 1062 {
+				return 0, nil
+			}
+		}
+		return 0, err
 	}
 
 	insertedID, err := res.LastInsertId()
 	if err != nil {
-		return 0, xerrors.New(err.Error())
+		return 0, err
 	}
 	return TokenID(insertedID), nil
 }
 
 func (s StorageRdbImpl) GetTokenByTerm(term string) (Token, error) {
-	var tokens []Token
-	err := s.DB.Select(&tokens, `select * from tokens where term = ?`, term)
-	if err != nil {
-		return Token{}, err
-	}
-	switch len(tokens) {
-	case 0:
+	var token Token
+	if err := s.DB.Get(&token, `select * from tokens where term = ?`, term); err != nil {
+		if err != sql.ErrNoRows {
+			return Token{}, err
+		}
 		return Token{}, nil
-	case 1:
-		return tokens[0], nil
-	default:
-		return Token{}, xerrors.New("error: two or more hits(inconsistent match result)")
 	}
+	return token, nil
 }
 
 func (s StorageRdbImpl) GetTokensByTerms(terms []string) ([]Token, error) {
@@ -133,12 +134,12 @@ func (s StorageRdbImpl) GetTokensByTerms(terms []string) ([]Token, error) {
 
 	query, args, err := sqlx.In(`select * from tokens where term in (?) order by field (term, ?)`, terms, terms)
 	if err != nil {
-		return nil, xerrors.New(err.Error())
+		return nil, err
 	}
 
 	var tokens []Token
 	if err := s.DB.Select(&tokens, query, args...); err != nil {
-		return nil, xerrors.New(err.Error())
+		return nil, err
 	}
 	return tokens, nil
 }
@@ -158,10 +159,10 @@ func (s StorageRdbImpl) GetInvertedIndexByTokenIDs(ids []TokenID) (InvertedIndex
 		where
 			token_id in (?)`, ids)
 	if err != nil {
-		return nil, xerrors.New(err.Error())
+		return nil, err
 	}
 	if err = s.DB.Select(&encoded, query, args...); err != nil {
-		return nil, xerrors.New(err.Error())
+		return nil, err
 	}
 	// decoded, _ := encoded.decode()
 	return decode(encoded)
@@ -170,7 +171,7 @@ func (s StorageRdbImpl) GetInvertedIndexByTokenIDs(ids []TokenID) (InvertedIndex
 func (s StorageRdbImpl) UpsertInvertedIndex(inverted InvertedIndex) error {
 	encoded, err := inverted.encode()
 	if err != nil {
-		return xerrors.New(err.Error())
+		return err
 	}
 
 	// NOTE: bulk upsertできない?
@@ -180,7 +181,7 @@ func (s StorageRdbImpl) UpsertInvertedIndex(inverted InvertedIndex) error {
 			values (:token_id, :posting_list)
 			on duplicate key update posting_list = :posting_list`, v)
 		if err != nil {
-			return xerrors.New(err.Error())
+			return err
 		}
 	}
 	return nil
@@ -201,7 +202,7 @@ func (i InvertedIndex) encode() ([]EncodedInvertedIndex, error) {
 		// Gobでシリアライズ&圧縮
 		plBuf := bytes.NewBuffer(nil)
 		if err := gob.NewEncoder(plBuf).Encode(v.Postings); err != nil {
-			return nil, xerrors.New(err.Error())
+			return nil, err
 		}
 		encoded = append(encoded, NewEncodedInvertedIndex(k, plBuf.Bytes()))
 	}
@@ -227,7 +228,7 @@ func decode(e []EncodedInvertedIndex) (InvertedIndex, error) {
 		p := &Postings{}
 		ret := bytes.NewBuffer(encoded.PostingList)
 		if err := gob.NewDecoder(ret).Decode(p); err != nil {
-			return nil, xerrors.New(err.Error())
+			return nil, err
 		}
 		pl := NewPostingList(p)
 

@@ -1,6 +1,8 @@
 package stalefish
 
-import "golang.org/x/xerrors"
+import (
+	"fmt"
+)
 
 type Logic int
 
@@ -66,7 +68,7 @@ func (ms MatchSearcher) Search() ([]Document, error) {
 		return nil, err
 	}
 	if ms.logic == AND && len(tokens) != len(terms) {
-		return nil, xerrors.New("error: insufficient number of tokens")
+		return nil, fmt.Errorf("error: insufficient number of tokens")
 	}
 
 	ids := make([]TokenID, len(tokens))
@@ -214,7 +216,7 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 		return nil, err
 	}
 	if len(tokens) != len(terms) {
-		return nil, xerrors.New("error: insufficient number of tokens")
+		return nil, fmt.Errorf("error: insufficient number of tokens")
 	}
 
 	ids := make([]TokenID, len(tokens))
