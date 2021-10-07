@@ -181,3 +181,74 @@ func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
 		}
 	}
 }
+
+func TestMerge(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		memoryInvertedIndex  PostingList
+		storageInvertedIndex PostingList
+		expected             PostingList
+	}{
+		{
+			memoryInvertedIndex: PostingList{
+				Postings: NewPostings(1, []uint64{0}, nil),
+			},
+			storageInvertedIndex: PostingList{
+				Postings: nil,
+			},
+			expected: PostingList{
+				Postings: NewPostings(1, []uint64{0}, nil),
+			},
+		},
+		{
+			memoryInvertedIndex: PostingList{
+				Postings: nil,
+			},
+			storageInvertedIndex: PostingList{
+				Postings: NewPostings(1, []uint64{0}, nil),
+			},
+			expected: PostingList{
+				Postings: NewPostings(1, []uint64{0}, nil),
+			},
+		},
+		{
+			memoryInvertedIndex: PostingList{
+				Postings: NewPostings(1, []uint64{0}, NewPostings(3, []uint64{0}, NewPostings(4, []uint64{3}, nil))),
+			},
+			storageInvertedIndex: PostingList{
+				Postings: NewPostings(2, []uint64{1, 2}, NewPostings(4, []uint64{3}, NewPostings(5, []uint64{12}, nil))),
+			},
+			expected: PostingList{
+				Postings: NewPostings(1, []uint64{0}, NewPostings(2, []uint64{1, 2}, NewPostings(3, []uint64{0}, NewPostings(4, []uint64{3}, NewPostings(5, []uint64{12}, nil))))),
+			},
+		},
+		{
+			memoryInvertedIndex: PostingList{
+				Postings: NewPostings(3, []uint64{0}, NewPostings(4, []uint64{0}, NewPostings(5, []uint64{3}, nil))),
+			},
+			storageInvertedIndex: PostingList{
+				Postings: NewPostings(1, []uint64{1, 2}, NewPostings(2, []uint64{3}, nil)),
+			},
+			expected: PostingList{
+				Postings: NewPostings(1, []uint64{1, 2}, NewPostings(2, []uint64{3}, NewPostings(3, []uint64{0}, NewPostings(4, []uint64{0}, NewPostings(5, []uint64{3}, nil))))),
+			},
+		},
+		{
+			memoryInvertedIndex: PostingList{
+				Postings: NewPostings(1, []uint64{0, 4}, nil),
+			},
+			storageInvertedIndex: PostingList{
+				Postings: NewPostings(3, []uint64{0, 1}, nil),
+			},
+			expected: PostingList{
+				Postings: NewPostings(1, []uint64{0, 4}, NewPostings(3, []uint64{0, 1}, nil)),
+			},
+		},
+	}
+	for _, tt := range cases {
+		merged := merge(tt.memoryInvertedIndex, tt.storageInvertedIndex)
+		if diff := cmp.Diff(merged, tt.expected); diff != "" {
+			t.Errorf("Diff: (-got +want)\n%s", diff)
+		}
+	}
+}

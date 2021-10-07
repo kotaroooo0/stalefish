@@ -20,6 +20,7 @@ create table inverted_indexes (
     posting_list longblob not null
 );
 
+-- ユニットテスト用のDBを作成
 drop database if exists stalefish_test;
 create database stalefish_test;
 use stalefish_test;

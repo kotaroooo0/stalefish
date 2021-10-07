@@ -47,7 +47,7 @@ func (i *Indexer) AddDocument(doc Document) error {
 	// ストレージ上の転置インデックスにマージする
 	for tokenID, postingList := range i.InvertedIndex {
 		storagePostingList := storageInvertedIndex[tokenID]
-		i.InvertedIndex[tokenID] = postingList.Merge(storagePostingList)
+		i.InvertedIndex[tokenID] = merge(postingList, storagePostingList)
 	}
 	if err := i.Storage.UpsertInvertedIndex(i.InvertedIndex); err != nil {
 		return err
@@ -120,4 +120,44 @@ func (i *Indexer) updateMemoryPostingListByToken(docID DocumentID, term Token, p
 	t.PushBack(NewPostings(docID, []uint64{pos}, nil))
 	i.InvertedIndex[token.ID] = postingList
 	return nil
+}
+
+func merge(origin, target PostingList) PostingList {
+	if origin.Postings == nil {
+		return target
+	}
+	if target.Postings == nil {
+		return origin
+	}
+
+	merged := PostingList{
+		Postings: nil,
+	}
+	var smaller, larger *Postings
+	if origin.Postings.DocumentID <= target.Postings.DocumentID {
+		merged.Postings = origin.Postings
+		smaller, larger = origin.Postings, target.Postings
+	} else {
+		merged.Postings = target.Postings
+		smaller, larger = target.Postings, origin.Postings
+	}
+
+	for larger != nil {
+		if smaller.Next == nil {
+			smaller.Next = larger
+			break
+		}
+
+		if smaller.Next.DocumentID < larger.DocumentID {
+			smaller = smaller.Next
+		} else if smaller.Next.DocumentID > larger.DocumentID {
+			largerNext, smallerNext := larger.Next, smaller.Next
+			smaller.Next, larger.Next = larger, smallerNext
+			smaller = larger
+			larger = largerNext
+		} else if smaller.Next.DocumentID == larger.DocumentID {
+			smaller, larger = smaller.Next, larger.Next
+		}
+	}
+	return merged
 }
