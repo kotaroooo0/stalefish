@@ -33,17 +33,13 @@ func (i *Indexer) AddDocument(doc Document) error {
 		return err
 	}
 
-	ids := make([]TokenID, len(i.InvertedIndex))
-	for i := range i.InvertedIndex {
-		ids = append(ids, i)
-	}
-
+	// メモリ上の転置インデックスのサイズが閾値以下であれば処理終了
 	if len(i.InvertedIndex) < INDEX_SIZE_THRESHOLD {
 		return nil
 	}
 
 	// マージ元の転置リストをストレージから読み出す
-	storageInvertedIndex, err := i.Storage.GetInvertedIndexByTokenIDs(ids)
+	storageInvertedIndex, err := i.Storage.GetInvertedIndexByTokenIDs(i.InvertedIndex.TokenIDs())
 	if err != nil {
 		return err
 	}
@@ -84,7 +80,8 @@ func (i *Indexer) updateMemoryPostingListByToken(docID DocumentID, term Token, p
 	}
 
 	postingList, ok := i.InvertedIndex[token.ID]
-	if !ok { // メモリ上に対応するポスティングリストがない
+	// メモリ上にトークンに対応するポスティングリストがない時
+	if !ok {
 		i.InvertedIndex[token.ID] = PostingList{
 			Postings: NewPostings(docID, []uint64{pos}, nil),
 		}
@@ -99,21 +96,28 @@ func (i *Indexer) updateMemoryPostingListByToken(docID DocumentID, term Token, p
 		p = p.Next
 	}
 
-	if p != nil { // 既に対象ドキュメントのポスティングが存在する
+	// 既に対象ドキュメントのポスティングが存在する時
+	if p != nil {
 		p.Positions = append(p.Positions, pos)
 		i.InvertedIndex[token.ID] = postingList
-	} else { // まだ対象ドキュメントのポスティングが存在しない
-		if docID < postingList.Postings.DocumentID { // 追加されるポスティングのドキュメントIDが最小の時
-			postingList.Postings = NewPostings(docID, []uint64{pos}, postingList.Postings)
-		} else { // 追加されるポスティングのドキュメントIDが最小でない時
-			// ドキュメントIDが昇順になるように挿入する場所を探索
-			var t *Postings = postingList.Postings
-			for t.Next != nil && t.Next.DocumentID < docID {
-				t = t.Next
-			}
-			t.Push(NewPostings(docID, []uint64{pos}, nil))
-		}
-		i.InvertedIndex[token.ID] = postingList
+		return nil
 	}
+
+	// まだ対象ドキュメントのポスティングが存在しない時
+	// 1.追加されるポスティングのドキュメントIDが最小の時 or 2.追加されるポスティングのドキュメントIDが最小でない時
+	// 1の時
+	if docID < postingList.Postings.DocumentID {
+		postingList.Postings = NewPostings(docID, []uint64{pos}, postingList.Postings)
+		i.InvertedIndex[token.ID] = postingList
+		return nil
+	}
+	// 2の時
+	// ドキュメントIDが昇順になるように挿入する場所を探索
+	var t *Postings = postingList.Postings
+	for t.Next != nil && t.Next.DocumentID < docID {
+		t = t.Next
+	}
+	t.PushBack(NewPostings(docID, []uint64{pos}, nil))
+	i.InvertedIndex[token.ID] = postingList
 	return nil
 }

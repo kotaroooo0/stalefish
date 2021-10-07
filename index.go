@@ -8,6 +8,14 @@ func NewInvertedIndex(m map[TokenID]PostingList) InvertedIndex {
 	return InvertedIndex(m)
 }
 
+func (ii InvertedIndex) TokenIDs() []TokenID {
+	ids := make([]TokenID, len(ii))
+	for i := range ii {
+		ids = append(ids, i)
+	}
+	return ids
+}
+
 // 転置リスト
 type PostingList struct {
 	Postings *Postings // トークンを含むポスティングスリスト
@@ -74,7 +82,7 @@ func NewPostings(documentID DocumentID, positions []uint64, next *Postings) *Pos
 	}
 }
 
-func (p *Postings) Push(e *Postings) {
+func (p *Postings) PushBack(e *Postings) {
 	e.Next = p.Next
 	p.Next = e
 }

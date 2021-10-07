@@ -31,7 +31,7 @@ func TestIndexerAddDocument(t *testing.T) {
 	truncateTableAll(db)
 
 	storage := NewStorageRdbImpl(db)
-	analyzer := NewAnalyzer([]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewLowercaseFilter(), NewStopWordFilter()})
+	analyzer := NewAnalyzer([]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewLowercaseFilter(), NewStopWordFilter([]string{})})
 	indexer := NewIndexer(storage, analyzer)
 
 	doc1 := NewDocument("aa bb cc dd aa bb")

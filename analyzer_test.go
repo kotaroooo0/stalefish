@@ -46,7 +46,7 @@ func TestAnalyze(t *testing.T) {
 			}),
 		},
 		{
-			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewStopWordFilter()}},
+			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewStopWordFilter([]string{"a"})}},
 			text:     "how a Big",
 			tokens: NewTokenStream([]Token{
 				NewToken("how"),
