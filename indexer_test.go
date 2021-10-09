@@ -1,189 +1,211 @@
 package stalefish
 
 import (
+	"fmt"
 	"testing"
 
+	gomock "github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 )
 
-// モック
-// type TestStorage struct {
-// 	Storage
-// }
+func TestIndexer_AddDocument(t *testing.T) {
+	tests := []struct {
+		doc      Document
+		expected InvertedIndex
+	}{
+		{
+			doc: Document{ID: 2, Body: "aa bb cc aa"},
+			expected: InvertedIndex(
+				map[TokenID]PostingList{
+					TokenID(0): {NewPostings(DocumentID(1), []uint64{0}, NewPostings(DocumentID(2), []uint64{0, 3}, NewPostings(DocumentID(3), []uint64{1}, nil)))},
+					TokenID(1): {NewPostings(DocumentID(1), []uint64{1}, NewPostings(DocumentID(2), []uint64{1}, NewPostings(DocumentID(3), []uint64{2}, nil)))},
+					TokenID(2): {NewPostings(DocumentID(1), []uint64{2}, NewPostings(DocumentID(2), []uint64{2}, nil))},
+				},
+			),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("doc = %v, expected = %v", tt.doc, tt.expected), func(t *testing.T) {
+			// Mock
+			mockCtrl := gomock.NewController(t)
+			defer mockCtrl.Finish()
+			mockStorage := NewMockStorage(mockCtrl)
 
-// func (s TestStorage) AddToken(token Token) (TokenID, error) {
-// 	return TokenID(0), nil
-// }
+			// Given
+			i := &Indexer{
+				Storage:       mockStorage,
+				Analyzer:      NewAnalyzer([]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}),
+				InvertedIndex: make(InvertedIndex),
+			}
+			invertedIndex := InvertedIndex(
+				map[TokenID]PostingList{
+					TokenID(0): {NewPostings(DocumentID(1), []uint64{0}, NewPostings(DocumentID(3), []uint64{1}, nil))},
+					TokenID(1): {NewPostings(DocumentID(1), []uint64{1}, NewPostings(DocumentID(3), []uint64{2}, nil))},
+					TokenID(2): {NewPostings(DocumentID(1), []uint64{2}, nil)},
+				},
+			)
+			mockStorage.EXPECT().AddToken(gomock.Any()).Return(TokenID(999), nil).AnyTimes()
+			mockStorage.EXPECT().AddDocument(tt.doc).Return(tt.doc.ID, nil).Times(1)
+			mockStorage.EXPECT().GetTokenByTerm("aa").Return(Token{ID: 0, Term: "aa"}, nil).Times(2)
+			mockStorage.EXPECT().GetTokenByTerm("bb").Return(Token{ID: 1, Term: "bb"}, nil).Times(1)
+			mockStorage.EXPECT().GetTokenByTerm("cc").Return(Token{ID: 2, Term: "cc"}, nil).Times(1)
+			mockStorage.EXPECT().GetInvertedIndexByTokenIDs([]TokenID{0, 1, 2}).Return(invertedIndex, nil).Times(1)
+			mockStorage.EXPECT().UpsertInvertedIndex(invertedIndex).Times(1)
 
-// func (s TestStorage) GetTokenByTerm(term string) (Token, error) {
-// 	return Token{
-// 		ID:   TokenID(len(term)),
-// 		Term: term,
-// 	}, nil
-// }
+			// When
+			if err := i.AddDocument(tt.doc); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
 
-// func TestIndexerAddDocument(t *testing.T) {
-// 	// TODO: デバッグ用にplayground的に使う、ちゃんとしたテストも書きたい
-// 	db, err := NewTestDBClient()
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// 	truncateTableAll(db)
+func TestIndexer_UpdateMemoryInvertedIndexByDocument(t *testing.T) {
+	cases := []struct {
+		doc      Document
+		expected InvertedIndex
+	}{
+		{
+			doc: Document{ID: 1, Body: "aa bb cc aa"},
+			expected: InvertedIndex{
+				0: PostingList{
+					Postings: NewPostings(1, []uint64{0, 3}, nil),
+				},
+				1: PostingList{
+					Postings: NewPostings(1, []uint64{1}, nil),
+				},
+				2: PostingList{
+					Postings: NewPostings(1, []uint64{2}, nil),
+				},
+			},
+		},
+	}
 
-// 	storage := NewStorageRdbImpl(db)
-// 	analyzer := NewAnalyzer([]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewLowercaseFilter(), NewStopWordFilter([]string{})})
-// 	indexer := NewIndexer(storage, analyzer)
+	for _, tt := range cases {
+		t.Run(fmt.Sprintf("doc = %v, expected = %v", tt.doc, tt.expected), func(t *testing.T) {
+			// Mock
+			mockCtrl := gomock.NewController(t)
+			defer mockCtrl.Finish()
+			mockStorage := NewMockStorage(mockCtrl)
 
-// 	doc1 := NewDocument("aa bb cc dd aa bb")
-// 	err = indexer.AddDocument(doc1)
-// 	if err != nil {
-// 		t.Errorf("%+v\n", err)
-// 	}
+			// Given
+			indexer := Indexer{
+				Storage:       mockStorage,
+				Analyzer:      Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
+				InvertedIndex: InvertedIndex{},
+			}
+			mockStorage.EXPECT().AddToken(gomock.Any()).Return(TokenID(999), nil).AnyTimes()
+			mockStorage.EXPECT().GetTokenByTerm("aa").Return(Token{ID: 0, Term: "aa"}, nil).Times(2)
+			mockStorage.EXPECT().GetTokenByTerm("bb").Return(Token{ID: 1, Term: "bb"}, nil).Times(1)
+			mockStorage.EXPECT().GetTokenByTerm("cc").Return(Token{ID: 2, Term: "cc"}, nil).Times(1)
 
-// 	doc2 := NewDocument("ee ff gg hh ii jj kk")
-// 	err = indexer.AddDocument(doc2)
-// 	if err != nil {
-// 		t.Errorf("%+v\n", err)
-// 	}
+			// When
+			if err := indexer.updateMemoryInvertedIndexByDocument(tt.doc); err != nil {
+				t.Error(err)
+			}
 
-// 	doc3 := NewDocument("aa aa bb bb jj kk ll oo nn bb vv rr tt uu yy qq")
-// 	err = indexer.AddDocument(doc3)
-// 	if err != nil {
-// 		t.Errorf("%+v\n", err)
-// 	}
-// 	token, err := storage.GetTokenByTerm("aa")
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// 	actual, err := storage.GetInvertedIndexByTokenIDs([]TokenID{token.ID})
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// 	expected := NewInvertedIndex(
-// 		map[TokenID]PostingList{
-// 			token.ID: NewPostingList(
-// 				NewPostings(1, []uint64{0, 4}, NewPostings(3, []uint64{0, 1}, nil))),
-// 		},
-// 	)
-// 	if diff := cmp.Diff(actual, expected); diff != "" {
-// 		t.Errorf("Diff: (-got +want)\n%s", diff)
-// 	}
-// }
+			// Then
+			if diff := cmp.Diff(indexer.InvertedIndex, tt.expected); diff != "" {
+				t.Errorf("Diff: (-got +want)\n%s", diff)
+			}
+		})
 
-// func TestUpdateMemoryInvertedIndexByDocument(t *testing.T) {
-// 	cases := []struct {
-// 		doc      Document
-// 		expected InvertedIndex
-// 	}{
-// 		{
-// 			doc: Document{ID: 1, Body: "ho fug piyo fug fug"},
-// 			expected: InvertedIndex{
-// 				2: PostingList{
-// 					Postings: NewPostings(1, []uint64{0}, nil),
-// 				},
-// 				3: PostingList{
-// 					Postings: NewPostings(1, []uint64{1, 3, 4}, nil),
-// 				},
-// 				4: PostingList{
-// 					Postings: NewPostings(1, []uint64{2}, nil),
-// 				},
-// 			},
-// 		},
-// 	}
+	}
+}
 
-// 	for _, tt := range cases {
-// 		indexer := Indexer{
-// 			Storage:       TestStorage{},
-// 			Analyzer:      Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
-// 			InvertedIndex: InvertedIndex{},
-// 		}
-// 		if err := indexer.updateMemoryInvertedIndexByDocument(tt.doc); err != nil {
-// 			t.Error(err)
-// 		}
-// 		if diff := cmp.Diff(indexer.InvertedIndex, tt.expected); diff != "" {
-// 			t.Errorf("Diff: (-got +want)\n%s", diff)
-// 		}
-// 	}
-// }
+func TestIndexer_UpdateMemoryInvertedIndexByToken(t *testing.T) {
+	cases := []struct {
+		docID    DocumentID
+		token    Token
+		pos      uint64
+		expected InvertedIndex
+	}{
+		{
+			// 対応するポスティングリストがない
+			docID: 1,
+			token: NewToken("ab"),
+			pos:   1,
+			expected: InvertedIndex{
+				TokenID(2): PostingList{
+					Postings: &Postings{DocumentID: 1, Positions: []uint64{1}, Next: nil},
+				},
+				TokenID(3): PostingList{
+					Postings: &Postings{DocumentID: 1, Positions: []uint64{1}, Next: nil},
+				},
+				TokenID(4): PostingList{
+					Postings: &Postings{DocumentID: 2, Positions: []uint64{1}, Next: nil},
+				},
+			},
+		},
+		{
+			// 既に対象ドキュメントのポスティングが存在する
+			docID: 1,
+			token: NewToken("abc"),
+			pos:   99,
+			expected: InvertedIndex{
+				TokenID(3): PostingList{
+					Postings: &Postings{DocumentID: 1, Positions: []uint64{1, 99}, Next: nil},
+				},
+				TokenID(4): PostingList{
+					Postings: &Postings{DocumentID: 2, Positions: []uint64{1}, Next: nil},
+				},
+			},
+		},
+		{
+			// まだ対象ドキュメントのポスティングが存在しない
+			docID: 1,
+			token: NewToken("abcd"),
+			pos:   99,
+			expected: InvertedIndex{
+				TokenID(3): PostingList{
+					Postings: &Postings{DocumentID: 1, Positions: []uint64{1}, Next: nil},
+				},
+				TokenID(4): PostingList{
+					Postings: &Postings{DocumentID: 1, Positions: []uint64{99}, Next: &Postings{DocumentID: 2, Positions: []uint64{1}, Next: nil}},
+				},
+			},
+		},
+	}
 
-// func TestUpdateMemoryInvertedIndexByToken(t *testing.T) {
-// 	cases := []struct {
-// 		docID    DocumentID
-// 		token    Token
-// 		pos      uint64
-// 		expected InvertedIndex
-// 	}{
-// 		{
-// 			// 対応するポスティングリストがない
-// 			docID: 1,
-// 			token: NewToken("ab"),
-// 			pos:   1,
-// 			expected: InvertedIndex{
-// 				TokenID(2): PostingList{
-// 					Postings: &Postings{DocumentID: 1, Positions: []uint64{1}, Next: nil},
-// 				},
-// 				TokenID(3): PostingList{
-// 					Postings: &Postings{DocumentID: 1, Positions: []uint64{1}, Next: nil},
-// 				},
-// 				TokenID(4): PostingList{
-// 					Postings: &Postings{DocumentID: 2, Positions: []uint64{1}, Next: nil},
-// 				},
-// 			},
-// 		},
-// 		{
-// 			// 既に対象ドキュメントのポスティングが存在する
-// 			docID: 1,
-// 			token: NewToken("abc"),
-// 			pos:   99,
-// 			expected: InvertedIndex{
-// 				TokenID(3): PostingList{
-// 					Postings: &Postings{DocumentID: 1, Positions: []uint64{1, 99}, Next: nil},
-// 				},
-// 				TokenID(4): PostingList{
-// 					Postings: &Postings{DocumentID: 2, Positions: []uint64{1}, Next: nil},
-// 				},
-// 			},
-// 		},
-// 		{
-// 			// まだ対象ドキュメントのポスティングが存在しない
-// 			docID: 1,
-// 			token: NewToken("abcd"),
-// 			pos:   99,
-// 			expected: InvertedIndex{
-// 				TokenID(3): PostingList{
-// 					Postings: &Postings{DocumentID: 1, Positions: []uint64{1}, Next: nil},
-// 				},
-// 				TokenID(4): PostingList{
-// 					Postings: &Postings{DocumentID: 1, Positions: []uint64{99}, Next: &Postings{DocumentID: 2, Positions: []uint64{1}, Next: nil}},
-// 				},
-// 			},
-// 		},
-// 	}
+	for _, tt := range cases {
+		t.Run(fmt.Sprintf("docID = %v, token = %v, pos = %v, expected = %v", tt.docID, tt.token, tt.pos, tt.expected), func(t *testing.T) {
+			// Mock
+			mockCtrl := gomock.NewController(t)
+			defer mockCtrl.Finish()
+			mockStorage := NewMockStorage(mockCtrl)
 
-// 	for _, tt := range cases {
-// 		indexer := Indexer{
-// 			Storage:  TestStorage{},
-// 			Analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
-// 			InvertedIndex: InvertedIndex{
-// 				TokenID(3): PostingList{
-// 					Postings: &Postings{DocumentID: 1, Positions: []uint64{1}, Next: nil},
-// 				},
-// 				TokenID(4): PostingList{
-// 					Postings: &Postings{DocumentID: 2, Positions: []uint64{1}, Next: nil},
-// 				},
-// 			},
-// 		}
-// 		if err := indexer.updateMemoryPostingListByToken(tt.docID, tt.token, tt.pos); err != nil {
-// 			t.Error(err)
-// 		}
-// 		if diff := cmp.Diff(indexer.InvertedIndex, tt.expected); diff != "" {
-// 			t.Errorf("Diff: (-got +want)\n%s", diff)
-// 		}
-// 	}
-// }
+			// Given
+			mockStorage.EXPECT().AddToken(gomock.Any()).Return(TokenID(999), nil).AnyTimes()
+			mockStorage.EXPECT().GetTokenByTerm("ab").Return(Token{ID: 2, Term: "ab"}, nil).AnyTimes()
+			mockStorage.EXPECT().GetTokenByTerm("abc").Return(Token{ID: 3, Term: "abc"}, nil).AnyTimes()
+			mockStorage.EXPECT().GetTokenByTerm("abcd").Return(Token{ID: 4, Term: "abcd"}, nil).AnyTimes()
+			indexer := Indexer{
+				Storage:  mockStorage,
+				Analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
+				InvertedIndex: InvertedIndex{
+					TokenID(3): PostingList{
+						Postings: &Postings{DocumentID: 1, Positions: []uint64{1}, Next: nil},
+					},
+					TokenID(4): PostingList{
+						Postings: &Postings{DocumentID: 2, Positions: []uint64{1}, Next: nil},
+					},
+				},
+			}
 
-func TestMerge(t *testing.T) {
-	t.Parallel()
+			// When
+			if err := indexer.updateMemoryPostingListByToken(tt.docID, tt.token, tt.pos); err != nil {
+				t.Error(err)
+			}
+
+			// Then
+			if diff := cmp.Diff(indexer.InvertedIndex, tt.expected); diff != "" {
+				t.Errorf("Diff: (-got +want)\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestIndexer_Merge(t *testing.T) {
 	cases := []struct {
 		memoryInvertedIndex  PostingList
 		storageInvertedIndex PostingList
@@ -246,9 +268,11 @@ func TestMerge(t *testing.T) {
 		},
 	}
 	for _, tt := range cases {
-		merged := merge(tt.memoryInvertedIndex, tt.storageInvertedIndex)
-		if diff := cmp.Diff(merged, tt.expected); diff != "" {
-			t.Errorf("Diff: (-got +want)\n%s", diff)
-		}
+		t.Run(fmt.Sprintf("memoryInvertedIndex = %v, storageInvertedIndex = %v, expected = %v", tt.memoryInvertedIndex, tt.storageInvertedIndex, tt.expected), func(t *testing.T) {
+			merged := merge(tt.memoryInvertedIndex, tt.storageInvertedIndex)
+			if diff := cmp.Diff(merged, tt.expected); diff != "" {
+				t.Errorf("Diff: (-got +want)\n%s", diff)
+			}
+		})
 	}
 }

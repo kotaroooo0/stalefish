@@ -1,5 +1,7 @@
 package stalefish
 
+import "sort"
+
 // 転置インデックス
 // TokenIDー>転置リストのマップ
 type InvertedIndex map[TokenID]PostingList
@@ -9,10 +11,11 @@ func NewInvertedIndex(m map[TokenID]PostingList) InvertedIndex {
 }
 
 func (ii InvertedIndex) TokenIDs() []TokenID {
-	ids := make([]TokenID, len(ii))
+	ids := []TokenID{}
 	for i := range ii {
 		ids = append(ids, i)
 	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
 	return ids
 }
 

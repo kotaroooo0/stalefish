@@ -67,6 +67,20 @@ func TestMatchSearch(t *testing.T) {
 		},
 		{
 			terms: NewTokenStream(
+				[]Token{},
+			),
+			logic:        AND,
+			expectedDocs: []Document{},
+		},
+		{
+			terms: NewTokenStream(
+				[]Token{NewToken("test")},
+			),
+			logic:        AND,
+			expectedDocs: []Document{},
+		},
+		{
+			terms: NewTokenStream(
 				[]Token{NewToken("dd")},
 			),
 			logic:        OR,
@@ -85,6 +99,20 @@ func TestMatchSearch(t *testing.T) {
 			),
 			logic:        OR,
 			expectedDocs: []Document{doc1, doc3},
+		},
+		{
+			terms: NewTokenStream(
+				[]Token{},
+			),
+			logic:        OR,
+			expectedDocs: []Document{},
+		},
+		{
+			terms: NewTokenStream(
+				[]Token{NewToken("test")},
+			),
+			logic:        OR,
+			expectedDocs: []Document{},
 		},
 	}
 
@@ -119,7 +147,7 @@ func TestMatchSearch(t *testing.T) {
 					Term: t.Term,
 				})
 			}
-			mockStorage.EXPECT().GetTokensByTerms(tt.terms.Terms()).Return(tokens, nil)
+			mockStorage.EXPECT().GetTokensByTerms(tt.terms.Terms()).Return(tokens, nil).AnyTimes()
 
 			ids := make([]TokenID, tt.terms.Size())
 			filteredInvertedIndex := make(InvertedIndex)
@@ -128,13 +156,13 @@ func TestMatchSearch(t *testing.T) {
 				ids[i] = tId
 				filteredInvertedIndex[tId] = invertedIndex[tId]
 			}
-			mockStorage.EXPECT().GetInvertedIndexByTokenIDs(ids).Return(filteredInvertedIndex, nil)
+			mockStorage.EXPECT().GetInvertedIndexByTokenIDs(ids).Return(filteredInvertedIndex, nil).AnyTimes()
 
 			docIDs := make([]DocumentID, len(tt.expectedDocs))
 			for i, doc := range tt.expectedDocs {
 				docIDs[i] = doc.ID
 			}
-			mockStorage.EXPECT().GetDocuments(docIDs).Return(tt.expectedDocs, nil)
+			mockStorage.EXPECT().GetDocuments(docIDs).Return(tt.expectedDocs, nil).AnyTimes()
 
 			// When
 			matchSearcher := NewMatchSearcher(tt.terms, tt.logic, mockStorage)
@@ -188,6 +216,16 @@ func TestPhraseSearch(t *testing.T) {
 				[]Token{NewToken("ff")},
 			), expectedDocs: []Document{doc3},
 		},
+		{
+			terms: NewTokenStream(
+				[]Token{},
+			), expectedDocs: []Document{},
+		},
+		{
+			terms: NewTokenStream(
+				[]Token{NewToken("test")},
+			), expectedDocs: []Document{},
+		},
 	}
 
 	for _, tt := range cases {
@@ -221,7 +259,7 @@ func TestPhraseSearch(t *testing.T) {
 					Term: t.Term,
 				})
 			}
-			mockStorage.EXPECT().GetTokensByTerms(tt.terms.Terms()).Return(tokens, nil)
+			mockStorage.EXPECT().GetTokensByTerms(tt.terms.Terms()).Return(tokens, nil).AnyTimes()
 
 			ids := make([]TokenID, tt.terms.Size())
 			filteredInvertedIndex := make(InvertedIndex)
@@ -230,13 +268,13 @@ func TestPhraseSearch(t *testing.T) {
 				ids[i] = tId
 				filteredInvertedIndex[tId] = invertedIndex[tId]
 			}
-			mockStorage.EXPECT().GetInvertedIndexByTokenIDs(ids).Return(filteredInvertedIndex, nil)
+			mockStorage.EXPECT().GetInvertedIndexByTokenIDs(ids).Return(filteredInvertedIndex, nil).AnyTimes()
 
 			docIDs := make([]DocumentID, len(tt.expectedDocs))
 			for i, doc := range tt.expectedDocs {
 				docIDs[i] = doc.ID
 			}
-			mockStorage.EXPECT().GetDocuments(docIDs).Return(tt.expectedDocs, nil)
+			mockStorage.EXPECT().GetDocuments(docIDs).Return(tt.expectedDocs, nil).AnyTimes()
 
 			// When
 			phraseSearcher := NewPhraseSearcher(tt.terms, mockStorage)
