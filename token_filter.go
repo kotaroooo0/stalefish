@@ -36,7 +36,7 @@ func NewLowercaseFilter() LowercaseFilter {
 }
 
 func (f LowercaseFilter) Filter(tokenStream *TokenStream) *TokenStream {
-	r := make([]Token, tokenStream.size())
+	r := make([]Token, tokenStream.Size())
 	for i, token := range tokenStream.Tokens {
 		lower := strings.ToLower(token.Term)
 		r[i] = NewToken(lower)
@@ -59,7 +59,7 @@ func (f StopWordFilter) Filter(tokenStream *TokenStream) *TokenStream {
 	for _, w := range f.StopWords {
 		stopwords[w] = struct{}{}
 	}
-	r := make([]Token, 0, tokenStream.size())
+	r := make([]Token, 0, tokenStream.Size())
 	for _, token := range tokenStream.Tokens {
 		if _, ok := stopwords[token.Term]; !ok {
 			r = append(r, token)
@@ -75,7 +75,7 @@ func NewStemmerFilter() StemmerFilter {
 }
 
 func (f StemmerFilter) Filter(tokenStream *TokenStream) *TokenStream {
-	r := make([]Token, tokenStream.size())
+	r := make([]Token, tokenStream.Size())
 	for i, token := range tokenStream.Tokens {
 		stemmed := english.Stem(token.Term, false)
 		r[i] = NewToken(stemmed)

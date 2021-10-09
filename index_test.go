@@ -1,6 +1,7 @@
 package stalefish
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -21,9 +22,14 @@ func TestPushBack(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		tt.postings.PushBack(tt.inserted)
-		if diff := cmp.Diff(tt.postings, tt.expected); diff != "" {
-			t.Errorf("Diff: (-got +want)\n%s", diff)
-		}
+		t.Run(fmt.Sprintf("postings = %v, inserted = %v, expected = %v,", tt.postings, tt.inserted, tt.expected), func(t *testing.T) {
+			// When
+			tt.postings.PushBack(tt.inserted)
+
+			// Then
+			if diff := cmp.Diff(tt.postings, tt.expected); diff != "" {
+				t.Errorf("Diff: (-got +want)\n%s", diff)
+			}
+		})
 	}
 }

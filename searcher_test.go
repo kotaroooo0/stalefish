@@ -1,81 +1,56 @@
 package stalefish
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestMatchAllSearch(t *testing.T) {
-	db, err := NewTestDBClient()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := truncateTableAll(db); err != nil {
-		t.Fatal(err)
-	}
+	// Mock
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	mockStorage := NewMockStorage(mockCtrl)
 
-	doc1 := NewDocument("go")
-	doc2 := NewDocument("ruby")
-	doc3 := NewDocument("python")
+	// Given
+	doc1 := Document{ID: 1, Body: "aa bb"}
+	doc2 := Document{ID: 2, Body: "cc dd"}
+	doc3 := Document{ID: 3, Body: "ee ff"}
 	docs := []Document{doc1, doc2, doc3}
-	if err := initDocuments(db, docs); err != nil {
-		t.Fatal(err)
-	}
-	doc1.ID = 1
-	doc2.ID = 2
-	doc3.ID = 3
+	mockStorage.EXPECT().GetAllDocuments().Return(docs, nil)
 
-	storage := NewStorageRdbImpl(db)
-	matchAllSearcher := NewMatchAllSearcher(storage)
-	matched, err := matchAllSearcher.Search()
+	// When
+	matchAllSearcher := NewMatchAllSearcher(mockStorage)
+	matchedDocs, err := matchAllSearcher.Search()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff(matched, []Document{doc1, doc2, doc3}); diff != "" {
+
+	// Then
+	if diff := cmp.Diff(matchedDocs, []Document{doc1, doc2, doc3}); diff != "" {
 		t.Errorf("Diff: (-got +want)\n%s", diff)
 	}
 }
 
 func TestMatchSearch(t *testing.T) {
-	db, err := NewTestDBClient()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := truncateTableAll(db); err != nil {
-		t.Fatal(err)
-	}
-
-	storage := NewStorageRdbImpl(db)
-	analyzer := NewAnalyzer([]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewLowercaseFilter(), NewStopWordFilter([]string{})})
-	indexer := NewIndexer(storage, analyzer)
-
-	doc1 := NewDocument("aa bb tt")
-	if err = indexer.AddDocument(doc1); err != nil {
-		t.Fatal(err)
-	}
-	doc2 := NewDocument("ee ff")
-	if err = indexer.AddDocument(doc2); err != nil {
-		t.Fatal(err)
-	}
-	doc3 := NewDocument("aa bb gg")
-	if err = indexer.AddDocument(doc3); err != nil {
-		t.Fatal(err)
-	}
-	doc4 := NewDocument("cc dd")
-	if err = indexer.AddDocument(doc4); err != nil {
-		t.Fatal(err)
-	}
-	doc1.ID = 1
-	doc2.ID = 2
-	doc3.ID = 3
-	doc4.ID = 4
+	doc1 := Document{ID: 1, Body: "aa bb cc"}
+	doc2 := Document{ID: 2, Body: "dd ee"}
+	doc3 := Document{ID: 3, Body: "ff aa bb"}
 
 	cases := []struct {
 		terms        *TokenStream
 		logic        Logic
 		expectedDocs []Document
 	}{
+		{
+			terms: NewTokenStream(
+				[]Token{NewToken("dd")},
+			),
+			logic:        AND,
+			expectedDocs: []Document{doc2},
+		},
 		{
 			terms: NewTokenStream(
 				[]Token{NewToken("aa"), NewToken("bb")},
@@ -85,61 +60,101 @@ func TestMatchSearch(t *testing.T) {
 		},
 		{
 			terms: NewTokenStream(
-				[]Token{NewToken("ee"), NewToken("cc")},
+				[]Token{NewToken("aa"), NewToken("dd")},
 			),
-			logic:        OR,
-			expectedDocs: []Document{doc2, doc4},
+			logic:        AND,
+			expectedDocs: []Document{},
 		},
 		{
 			terms: NewTokenStream(
-				[]Token{NewToken("aa"), NewToken("tt"), NewToken("dd")},
+				[]Token{NewToken("dd")},
 			),
 			logic:        OR,
-			expectedDocs: []Document{doc1, doc3, doc4},
+			expectedDocs: []Document{doc2},
+		},
+		{
+			terms: NewTokenStream(
+				[]Token{NewToken("cc"), NewToken("dd")},
+			),
+			logic:        OR,
+			expectedDocs: []Document{doc1, doc2},
+		},
+		{
+			terms: NewTokenStream(
+				[]Token{NewToken("aa"), NewToken("ff")},
+			),
+			logic:        OR,
+			expectedDocs: []Document{doc1, doc3},
 		},
 	}
 
 	for _, tt := range cases {
-		matchSearcher := NewMatchSearcher(tt.terms, tt.logic, storage)
-		actualDocs, err := matchSearcher.Search()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if diff := cmp.Diff(tt.expectedDocs, actualDocs); diff != "" {
-			t.Errorf("Diff: (-got +want)\n%s", diff)
-		}
+		t.Run(fmt.Sprintf("terms = %v, logic = %v, expectedDocs = %v", tt.terms, tt.logic, tt.expectedDocs), func(t *testing.T) {
+			// Mock
+			mockCtrl := gomock.NewController(t)
+			defer mockCtrl.Finish()
+			mockStorage := NewMockStorage(mockCtrl)
+
+			// Given
+			termToId := map[string]int{"aa": 0, "bb": 1, "cc": 2, "dd": 3, "ee": 4, "ff": 5}
+			invertedIndex := InvertedIndex(
+				map[TokenID]PostingList{
+					TokenID(0): {NewPostings(DocumentID(1), []uint64{0}, NewPostings(DocumentID(3), []uint64{1}, nil))},
+					TokenID(1): {NewPostings(DocumentID(1), []uint64{1}, NewPostings(DocumentID(3), []uint64{2}, nil))},
+					TokenID(2): {NewPostings(DocumentID(1), []uint64{2}, nil)},
+					TokenID(3): {NewPostings(DocumentID(2), []uint64{0}, nil)},
+					TokenID(4): {NewPostings(DocumentID(2), []uint64{1}, nil)},
+					TokenID(5): {NewPostings(DocumentID(3), []uint64{0}, nil)},
+				},
+			)
+
+			tokens := []Token{}
+			for _, t := range tt.terms.Tokens {
+				tId, ok := termToId[t.Term]
+				if !ok {
+					continue
+				}
+				tokens = append(tokens, Token{
+					ID:   TokenID(tId),
+					Term: t.Term,
+				})
+			}
+			mockStorage.EXPECT().GetTokensByTerms(tt.terms.Terms()).Return(tokens, nil)
+
+			ids := make([]TokenID, tt.terms.Size())
+			filteredInvertedIndex := make(InvertedIndex)
+			for i, t := range tt.terms.Tokens {
+				tId := TokenID(termToId[t.Term])
+				ids[i] = tId
+				filteredInvertedIndex[tId] = invertedIndex[tId]
+			}
+			mockStorage.EXPECT().GetInvertedIndexByTokenIDs(ids).Return(filteredInvertedIndex, nil)
+
+			docIDs := make([]DocumentID, len(tt.expectedDocs))
+			for i, doc := range tt.expectedDocs {
+				docIDs[i] = doc.ID
+			}
+			mockStorage.EXPECT().GetDocuments(docIDs).Return(tt.expectedDocs, nil)
+
+			// When
+			matchSearcher := NewMatchSearcher(tt.terms, tt.logic, mockStorage)
+			actualDocs, err := matchSearcher.Search()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Then
+			if diff := cmp.Diff(tt.expectedDocs, actualDocs); diff != "" {
+				t.Errorf("Diff: (-got +want)\n%s", diff)
+			}
+		})
 	}
 }
 
 func TestPhraseSearch(t *testing.T) {
-	// TODO: デバッグ用にplayground的に使う、ちゃんとしたテストも書きたい
-	db, err := NewTestDBClient()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := truncateTableAll(db); err != nil {
-		t.Fatal(err)
-	}
-
-	storage := NewStorageRdbImpl(db)
-	analyzer := NewAnalyzer([]CharFilter{}, NewStandardTokenizer(), []TokenFilter{NewLowercaseFilter(), NewStopWordFilter([]string{})})
-	indexer := NewIndexer(storage, analyzer)
-
-	doc1 := NewDocument("aa bb cc")
-	if err = indexer.AddDocument(doc1); err != nil {
-		t.Fatal(err)
-	}
-	doc2 := NewDocument("ee ff gg")
-	if err = indexer.AddDocument(doc2); err != nil {
-		t.Fatal(err)
-	}
-	doc3 := NewDocument("jj kk ll aa bb")
-	if err = indexer.AddDocument(doc3); err != nil {
-		t.Fatal(err)
-	}
-	doc1.ID = 1
-	doc2.ID = 2
-	doc3.ID = 3
+	doc1 := Document{ID: 1, Body: "aa bb cc"}
+	doc2 := Document{ID: 2, Body: "dd ee"}
+	doc3 := Document{ID: 3, Body: "ff aa bb"}
 
 	cases := []struct {
 		terms        *TokenStream
@@ -153,13 +168,13 @@ func TestPhraseSearch(t *testing.T) {
 		},
 		{
 			terms: NewTokenStream(
-				[]Token{NewToken("ff"), NewToken("gg")},
+				[]Token{NewToken("dd"), NewToken("ee")},
 			),
 			expectedDocs: []Document{doc2},
 		},
 		{
 			terms: NewTokenStream(
-				[]Token{NewToken("ll"), NewToken("aa"), NewToken("bb")},
+				[]Token{NewToken("ff"), NewToken("aa"), NewToken("bb")},
 			),
 			expectedDocs: []Document{doc3},
 		},
@@ -170,23 +185,70 @@ func TestPhraseSearch(t *testing.T) {
 		},
 		{
 			terms: NewTokenStream(
-				[]Token{NewToken("ll")},
+				[]Token{NewToken("ff")},
 			), expectedDocs: []Document{doc3},
-		},
-		{
-			terms:        NewTokenStream([]Token{}),
-			expectedDocs: []Document{},
 		},
 	}
 
 	for _, tt := range cases {
-		phraseSearcher := NewPhraseSearcher(tt.terms, storage)
-		actualDocs, err := phraseSearcher.Search()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if diff := cmp.Diff(tt.expectedDocs, actualDocs); diff != "" {
-			t.Errorf("Diff: (-got +want)\n%s", diff)
-		}
+		t.Run(fmt.Sprintf("terms = %v, expectedDocs = %v", tt.terms, tt.expectedDocs), func(t *testing.T) {
+			// Mock
+			mockCtrl := gomock.NewController(t)
+			defer mockCtrl.Finish()
+			mockStorage := NewMockStorage(mockCtrl)
+
+			// Given
+			termToId := map[string]int{"aa": 0, "bb": 1, "cc": 2, "dd": 3, "ee": 4, "ff": 5}
+			invertedIndex := InvertedIndex(
+				map[TokenID]PostingList{
+					TokenID(0): {NewPostings(DocumentID(1), []uint64{0}, NewPostings(DocumentID(3), []uint64{1}, nil))},
+					TokenID(1): {NewPostings(DocumentID(1), []uint64{1}, NewPostings(DocumentID(3), []uint64{2}, nil))},
+					TokenID(2): {NewPostings(DocumentID(1), []uint64{2}, nil)},
+					TokenID(3): {NewPostings(DocumentID(2), []uint64{0}, nil)},
+					TokenID(4): {NewPostings(DocumentID(2), []uint64{1}, nil)},
+					TokenID(5): {NewPostings(DocumentID(3), []uint64{0}, nil)},
+				},
+			)
+
+			tokens := []Token{}
+			for _, t := range tt.terms.Tokens {
+				tId, ok := termToId[t.Term]
+				if !ok {
+					continue
+				}
+				tokens = append(tokens, Token{
+					ID:   TokenID(tId),
+					Term: t.Term,
+				})
+			}
+			mockStorage.EXPECT().GetTokensByTerms(tt.terms.Terms()).Return(tokens, nil)
+
+			ids := make([]TokenID, tt.terms.Size())
+			filteredInvertedIndex := make(InvertedIndex)
+			for i, t := range tt.terms.Tokens {
+				tId := TokenID(termToId[t.Term])
+				ids[i] = tId
+				filteredInvertedIndex[tId] = invertedIndex[tId]
+			}
+			mockStorage.EXPECT().GetInvertedIndexByTokenIDs(ids).Return(filteredInvertedIndex, nil)
+
+			docIDs := make([]DocumentID, len(tt.expectedDocs))
+			for i, doc := range tt.expectedDocs {
+				docIDs[i] = doc.ID
+			}
+			mockStorage.EXPECT().GetDocuments(docIDs).Return(tt.expectedDocs, nil)
+
+			// When
+			phraseSearcher := NewPhraseSearcher(tt.terms, mockStorage)
+			actualDocs, err := phraseSearcher.Search()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Then
+			if diff := cmp.Diff(tt.expectedDocs, actualDocs); diff != "" {
+				t.Errorf("Diff: (-got +want)\n%s", diff)
+			}
+		})
 	}
 }

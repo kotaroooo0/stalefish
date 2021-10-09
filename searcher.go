@@ -1,7 +1,7 @@
 package stalefish
 
 import (
-	"fmt"
+	"sort"
 )
 
 type Logic int
@@ -54,21 +54,24 @@ func NewMatchSearcher(tokenStream *TokenStream, logic Logic, storage Storage) Ma
 
 func (ms MatchSearcher) Search() ([]Document, error) {
 	// トークンストリームが空ならマッチするドキュメントなし
-	if ms.tokenStream.size() == 0 {
+	if ms.tokenStream.Size() == 0 {
 		return []Document{}, nil
 	}
 
-	terms := make([]string, ms.tokenStream.size())
-	for i, t := range ms.tokenStream.Tokens {
-		terms[i] = t.Term
-	}
 	// IDを取得するため
-	tokens, err := ms.storage.GetTokensByTerms(terms)
+	tokens, err := ms.storage.GetTokensByTerms(ms.tokenStream.Terms())
 	if err != nil {
 		return nil, err
 	}
-	if ms.logic == AND && len(tokens) != len(terms) {
-		return nil, fmt.Errorf("error: insufficient number of tokens")
+
+	// 対応トークンが一つも存在していない場合、結果は空
+	if len(tokens) == 0 {
+		return []Document{}, nil
+	}
+
+	// AND検索の場合、対応するトークンが全て存在していなかったら結果は空
+	if ms.logic == AND && len(tokens) != len(ms.tokenStream.Terms()) {
+		return []Document{}, nil
 	}
 
 	ids := make([]TokenID, len(tokens))
@@ -173,10 +176,11 @@ func uniqueDocumentId(ids []DocumentID) []DocumentID {
 	for _, id := range ids {
 		m[id] = struct{}{}
 	}
-	uniq := make([]DocumentID, len(m))
-	for i := range m {
-		uniq = append(uniq, i)
+	uniq := []DocumentID{}
+	for k := range m {
+		uniq = append(uniq, k)
 	}
+	sort.Slice(uniq, func(i, j int) bool { return uniq[i] < uniq[j] })
 	return uniq
 }
 
@@ -202,21 +206,19 @@ func NewPhraseSearcher(tokenStream *TokenStream, storage Storage) PhraseSearcher
 // 7, 並び替えられた検索結果のうち、上位のものを検索結果として返す
 func (ps PhraseSearcher) Search() ([]Document, error) {
 	// トークンストリームが空ならマッチするドキュメントなし
-	if ps.tokenStream.size() == 0 {
+	if ps.tokenStream.Size() == 0 {
 		return []Document{}, nil
 	}
 
-	terms := make([]string, ps.tokenStream.size())
-	for i, t := range ps.tokenStream.Tokens {
-		terms[i] = t.Term
-	}
 	// IDを取得するため
-	tokens, err := ps.storage.GetTokensByTerms(terms)
+	tokens, err := ps.storage.GetTokensByTerms(ps.tokenStream.Terms())
 	if err != nil {
 		return nil, err
 	}
-	if len(tokens) != len(terms) {
-		return nil, fmt.Errorf("error: insufficient number of tokens")
+
+	// 対応するトークンが全て存在していなかったら結果は空
+	if len(tokens) != len(ps.tokenStream.Terms()) {
+		return []Document{}, nil
 	}
 
 	ids := make([]TokenID, len(tokens))
@@ -228,6 +230,7 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	// トークンごとのポスティングを取得
 	postings := make([]*Postings, len(inverted))
 	for i, t := range tokens {
@@ -267,8 +270,8 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 // が与えられて、相対ポジションに変換してintスライス間で共通する要素があるか判定する
 func isPhraseMatch(tokenStream *TokenStream, postings []*Postings) bool {
 	// 相対ポジションリストを作る
-	relativePositionsList := make([][]uint64, tokenStream.size())
-	for i := 0; i < tokenStream.size(); i++ {
+	relativePositionsList := make([][]uint64, tokenStream.Size())
+	for i := 0; i < tokenStream.Size(); i++ {
 		relativePositionsList[i] = decrementUintSlice(postings[i].Positions, uint64(i))
 	}
 

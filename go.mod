@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/go-sql-driver/mysql v1.5.0
+	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.5.5
 	github.com/ikawaha/kagome-dict-ipa-neologd v0.2.0
 	github.com/ikawaha/kagome/v2 v2.4.4

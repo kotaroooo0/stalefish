@@ -1,17 +1,13 @@
 package morphology
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestAnalyze(t *testing.T) {
-	kagome, err := NewKagome()
-	if err != nil {
-		t.Error("error: fail to initialize kagome tokenizer")
-	}
-
 	cases := []struct {
 		text     string
 		expected []MorphologyToken
@@ -81,7 +77,6 @@ func TestAnalyze(t *testing.T) {
 		{
 			text: "白馬47",
 			expected: []MorphologyToken{
-
 				NewMorphologyToken("白馬", "ハクバ"),
 				NewMorphologyToken("47", "47"),
 			},
@@ -89,16 +84,22 @@ func TestAnalyze(t *testing.T) {
 		{
 			text: "琵琶湖バレイ",
 			expected: []MorphologyToken{
-
 				NewMorphologyToken("琵琶湖", "ビワコ"),
 				NewMorphologyToken("バレイ", "バレイ"),
 			},
 		},
 	}
 
+	kagome, err := NewKagome()
+	if err != nil {
+		t.Error("error: fail to initialize kagome tokenizer")
+	}
+
 	for _, tt := range cases {
-		if diff := cmp.Diff(tt.expected, kagome.Analyze(tt.text)); diff != "" {
-			t.Errorf("Diff: (-got +want)\n%s", diff)
-		}
+		t.Run(fmt.Sprintf("text = %v, expected = %v", tt.text, tt.expected), func(t *testing.T) {
+			if diff := cmp.Diff(tt.expected, kagome.Analyze(tt.text)); diff != "" {
+				t.Errorf("Diff: (-got +want)\n%s", diff)
+			}
+		})
 	}
 }

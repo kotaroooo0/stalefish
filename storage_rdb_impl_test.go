@@ -1,6 +1,7 @@
 package stalefish
 
 import (
+	"fmt"
 	"math/rand"
 	"sync"
 	"testing"
@@ -29,25 +30,34 @@ func truncateTableAll(db *sqlx.DB) error {
 	return nil
 }
 
-func initDocuments(db *sqlx.DB, docs []Document) error {
-	storage := NewStorageRdbImpl(db)
+func insertDocuments(db *sqlx.DB, docs []Document) error {
 	for _, doc := range docs {
-		if _, err := storage.AddDocument(doc); err != nil {
+		if _, err := db.NamedExec(`insert into documents (body) values (:body)`, map[string]interface{}{"body": doc.Body}); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func initTokens(db *sqlx.DB) error {
-	storage := NewStorageRdbImpl(db)
-
-	tokens := []Token{
-		NewToken("term1"),
-		NewToken("term2"),
-	}
+func insertTokens(db *sqlx.DB, tokens []Token) error {
 	for _, token := range tokens {
-		if _, err := storage.AddToken(token); err != nil {
+		if _, err := db.NamedExec(`insert into tokens (term) values (:term)`, map[string]interface{}{"term": token.Term}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func insertInvertedIndex(db *sqlx.DB, invertedIndex InvertedIndex) error {
+	encoded, err := invertedIndex.encode()
+	if err != nil {
+		return err
+	}
+	for _, v := range encoded {
+		if _, err := db.NamedExec(
+			`insert into inverted_indexes (token_id, posting_list)
+			values (:token_id, :posting_list)
+			on duplicate key update posting_list = :posting_list`, v); err != nil {
 			return err
 		}
 	}
@@ -62,35 +72,36 @@ func TestGetAllDocuments(t *testing.T) {
 	if err := truncateTableAll(db); err != nil {
 		t.Fatal(err)
 	}
-	docs := []Document{
-		NewDocument("body1"),
-		NewDocument("body2"),
-		NewDocument("body3"),
-	}
-	if err := initDocuments(db, docs); err != nil {
+	if err := insertDocuments(db, []Document{
+		NewDocument("TestGetAllDocuments1"),
+		NewDocument("TestGetAllDocuments2"),
+		NewDocument("TestGetAllDocuments3"),
+	}); err != nil {
 		t.Fatal(err)
 	}
-
-	expectedDoc1 := Document{ID: 1, Body: "body1"}
-	expectedDoc2 := Document{ID: 2, Body: "body2"}
-	expectedDoc3 := Document{ID: 3, Body: "body3"}
 
 	cases := []struct {
 		expected []Document
 	}{
 		{
-			expected: []Document{expectedDoc1, expectedDoc2, expectedDoc3},
+			expected: []Document{
+				{ID: 1, Body: "TestGetAllDocuments1"},
+				{ID: 2, Body: "TestGetAllDocuments2"},
+				{ID: 3, Body: "TestGetAllDocuments3"},
+			},
 		},
 	}
 	storage := NewStorageRdbImpl(db)
 	for _, tt := range cases {
-		docs, err := storage.GetAllDocuments()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if diff := cmp.Diff(docs, tt.expected); diff != "" {
-			t.Fatalf("Diff: (-got +want)\n%s", diff)
-		}
+		t.Run(fmt.Sprintf("expected = %v", tt.expected), func(t *testing.T) {
+			docs, err := storage.GetAllDocuments()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(docs, tt.expected); diff != "" {
+				t.Fatalf("Diff: (-got +want)\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -102,18 +113,17 @@ func TestGetDocuments(t *testing.T) {
 	if err := truncateTableAll(db); err != nil {
 		t.Fatal(err)
 	}
-	docs := []Document{
-		NewDocument("body1"),
-		NewDocument("body2"),
-		NewDocument("body3"),
-	}
-	if err := initDocuments(db, docs); err != nil {
+	if err := insertDocuments(db, []Document{
+		NewDocument("TestGetDocuments1"),
+		NewDocument("TestGetDocuments2"),
+		NewDocument("TestGetDocuments3"),
+	}); err != nil {
 		t.Fatal(err)
 	}
 
-	expectedDoc1 := Document{ID: 1, Body: "body1"}
-	expectedDoc2 := Document{ID: 2, Body: "body2"}
-	expectedDoc3 := Document{ID: 3, Body: "body3"}
+	expectedDoc1 := Document{ID: 1, Body: "TestGetDocuments1"}
+	expectedDoc2 := Document{ID: 2, Body: "TestGetDocuments2"}
+	expectedDoc3 := Document{ID: 3, Body: "TestGetDocuments3"}
 
 	cases := []struct {
 		ids      []DocumentID
@@ -135,13 +145,15 @@ func TestGetDocuments(t *testing.T) {
 
 	storage := NewStorageRdbImpl(db)
 	for _, tt := range cases {
-		docs, err := storage.GetDocuments(tt.ids)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if diff := cmp.Diff(docs, tt.expected); diff != "" {
-			t.Fatalf("Diff: (-got +want)\n%s", diff)
-		}
+		t.Run(fmt.Sprintf("ids = %v, expected = %v", tt.ids, tt.expected), func(t *testing.T) {
+			docs, err := storage.GetDocuments(tt.ids)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(docs, tt.expected); diff != "" {
+				t.Fatalf("Diff: (-got +want)\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -159,32 +171,30 @@ func TestAddDocument(t *testing.T) {
 		expected DocumentID
 	}{
 		{
-			doc:      NewDocument("body1"),
+			doc:      NewDocument("TestAddDocument1"),
 			expected: 1,
 		},
 		{
-			doc:      NewDocument("body2"),
+			doc:      NewDocument("TestAddDocument2"),
 			expected: 2,
 		},
 		{
-			doc:      NewDocument("body3"),
+			doc:      NewDocument("TestAddDocument3"),
 			expected: 3,
-		},
-		{
-			doc:      NewDocument("body4"),
-			expected: 4,
 		},
 	}
 
 	storage := NewStorageRdbImpl(db)
 	for _, tt := range cases {
-		id, err := storage.AddDocument(tt.doc)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if diff := cmp.Diff(id, tt.expected); diff != "" {
-			t.Fatalf("Diff: (-got +want)\n%s", diff)
-		}
+		t.Run(fmt.Sprintf("doc = %v, expected = %v", tt.doc, tt.expected), func(t *testing.T) {
+			id, err := storage.AddDocument(tt.doc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(id, tt.expected); diff != "" {
+				t.Fatalf("Diff: (-got +want)\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -202,32 +212,30 @@ func TestAddToken(t *testing.T) {
 		expected TokenID
 	}{
 		{
-			token:    NewToken("token1"),
+			token:    NewToken("TestAddToken1"),
 			expected: 1,
 		},
 		{
-			token:    NewToken("token2"),
+			token:    NewToken("TestAddToken2"),
 			expected: 2,
 		},
 		{
-			token:    NewToken("token3"),
+			token:    NewToken("TestAddToken3"),
 			expected: 3,
-		},
-		{
-			token:    NewToken("token4"),
-			expected: 4,
 		},
 	}
 
 	storage := NewStorageRdbImpl(db)
 	for _, tt := range cases {
-		id, err := storage.AddToken(tt.token)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if diff := cmp.Diff(id, tt.expected); diff != "" {
-			t.Fatalf("Diff: (-got +want)\n%s", diff)
-		}
+		t.Run(fmt.Sprintf("token = %v, expected = %v", tt.token, tt.expected), func(t *testing.T) {
+			id, err := storage.AddToken(tt.token)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(id, tt.expected); diff != "" {
+				t.Fatalf("Diff: (-got +want)\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -239,12 +247,12 @@ func TestGetTokenByTerm(t *testing.T) {
 	if err := truncateTableAll(db); err != nil {
 		t.Fatal(err)
 	}
-	if err := initTokens(db); err != nil {
+	if err := insertTokens(db, []Token{
+		NewToken("term1"),
+		NewToken("term2"),
+	}); err != nil {
 		t.Fatal(err)
 	}
-
-	expectedToken1 := Token{ID: 1, Term: "term1"}
-	expectedToken2 := Token{ID: 2, Term: "term2"}
 
 	cases := []struct {
 		term     string
@@ -252,11 +260,11 @@ func TestGetTokenByTerm(t *testing.T) {
 	}{
 		{
 			term:     "term1",
-			expected: expectedToken1,
+			expected: Token{ID: 1, Term: "term1"},
 		},
 		{
 			term:     "term2",
-			expected: expectedToken2,
+			expected: Token{ID: 2, Term: "term2"},
 		},
 		{
 			term:     "term3",
@@ -266,13 +274,15 @@ func TestGetTokenByTerm(t *testing.T) {
 
 	storage := NewStorageRdbImpl(db)
 	for _, tt := range cases {
-		token, err := storage.GetTokenByTerm(tt.term)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if diff := cmp.Diff(token, tt.expected); diff != "" {
-			t.Fatalf("Diff: (-got +want)\n%s", diff)
-		}
+		t.Run(fmt.Sprintf("term = %v, expected = %v", tt.term, tt.expected), func(t *testing.T) {
+			token, err := storage.GetTokenByTerm(tt.term)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(token, tt.expected); diff != "" {
+				t.Fatalf("Diff: (-got +want)\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -284,7 +294,10 @@ func TestGetTokensByTerms(t *testing.T) {
 	if err := truncateTableAll(db); err != nil {
 		t.Fatal(err)
 	}
-	if err := initTokens(db); err != nil {
+	if err := insertTokens(db, []Token{
+		NewToken("term1"),
+		NewToken("term2"),
+	}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -307,13 +320,15 @@ func TestGetTokensByTerms(t *testing.T) {
 
 	storage := NewStorageRdbImpl(db)
 	for _, tt := range cases {
-		tokens, err := storage.GetTokensByTerms(tt.terms)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if diff := cmp.Diff(tokens, tt.expected); diff != "" {
-			t.Fatalf("Diff: (-got +want)\n%s", diff)
-		}
+		t.Run(fmt.Sprintf("terms = %v, expected = %v", tt.terms, tt.expected), func(t *testing.T) {
+			tokens, err := storage.GetTokensByTerms(tt.terms)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(tokens, tt.expected); diff != "" {
+				t.Fatalf("Diff: (-got +want)\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -325,16 +340,14 @@ func TestGetInvertedIndexByTokenIDs(t *testing.T) {
 	if err := truncateTableAll(db); err != nil {
 		t.Fatal(err)
 	}
-	inverted := NewInvertedIndex(
+	invertedIndex := NewInvertedIndex(
 		map[TokenID]PostingList{
 			TokenID(777): NewPostingList(
 				NewPostings(1, []uint64{1, 2, 3, 4}, NewPostings(100, []uint64{11, 22}, NewPostings(250, []uint64{11, 15, 22}, nil))),
 			),
 		},
 	)
-
-	storage := NewStorageRdbImpl(db)
-	if storage.UpsertInvertedIndex(inverted) != nil {
+	if err := insertInvertedIndex(db, invertedIndex); err != nil {
 		t.Fatal(err)
 	}
 
@@ -354,14 +367,17 @@ func TestGetInvertedIndexByTokenIDs(t *testing.T) {
 		},
 	}
 
+	storage := NewStorageRdbImpl(db)
 	for _, tt := range cases {
-		actual, err := storage.GetInvertedIndexByTokenIDs(tt.tokenIDs)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if diff := cmp.Diff(actual, tt.expected); diff != "" {
-			t.Fatalf("Diff: (-got +want)\n%s", diff)
-		}
+		t.Run(fmt.Sprintf("tokenIDs = %v, expected = %v", tt.tokenIDs, tt.expected), func(t *testing.T) {
+			actual, err := storage.GetInvertedIndexByTokenIDs(tt.tokenIDs)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(actual, tt.expected); diff != "" {
+				t.Fatalf("Diff: (-got +want)\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -373,7 +389,7 @@ func TestUpsertInvertedIndex(t *testing.T) {
 	if err := truncateTableAll(db); err != nil {
 		t.Fatal(err)
 	}
-	inverted := NewInvertedIndex(
+	invertedIndex := NewInvertedIndex(
 		map[TokenID]PostingList{
 			TokenID(777): NewPostingList(
 				NewPostings(1, []uint64{1, 2, 3, 4}, NewPostings(3, []uint64{11, 22}, NewPostings(5, []uint64{11, 15, 22}, nil))),
@@ -389,19 +405,21 @@ func TestUpsertInvertedIndex(t *testing.T) {
 		err           error
 	}{
 		{
-			invertedIndex: inverted,
+			invertedIndex: invertedIndex,
 			err:           nil,
 		},
 	}
 
 	storage := NewStorageRdbImpl(db)
 	for _, tt := range cases {
-		if err := storage.UpsertInvertedIndex(tt.invertedIndex); err != nil {
-			t.Fatal(err)
-		}
-		if diff := cmp.Diff(err, tt.err); diff != "" {
-			t.Fatalf("Diff: (-got +want)\n%s", diff)
-		}
+		t.Run(fmt.Sprintf("invertedIndex = %v, err = %v", tt.invertedIndex, tt.err), func(t *testing.T) {
+			if err := storage.UpsertInvertedIndex(tt.invertedIndex); err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(err, tt.err); diff != "" {
+				t.Fatalf("Diff: (-got +want)\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -412,9 +430,6 @@ func TestCompressedIndex(t *testing.T) {
 
 	db, err := NewTestDBClient()
 	if err != nil {
-		t.Fatal(err)
-	}
-	if err := truncateTableAll(db); err != nil {
 		t.Fatal(err)
 	}
 

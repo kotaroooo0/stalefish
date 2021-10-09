@@ -34,6 +34,14 @@ func NewTokenStream(tokens []Token) *TokenStream {
 	}
 }
 
-func (ts *TokenStream) size() int {
+func (ts *TokenStream) Size() int {
 	return len(ts.Tokens)
+}
+
+func (ts *TokenStream) Terms() []string {
+	terms := make([]string, ts.Size())
+	for i, t := range ts.Tokens {
+		terms[i] = t.Term
+	}
+	return terms
 }
