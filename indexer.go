@@ -14,26 +14,25 @@ func NewIndexer(storage Storage, analyzer Analyzer) *Indexer {
 	}
 }
 
-// 0: 常にストレージへ保存
 const INDEX_SIZE_THRESHOLD = 0
 
-// 1.文書からトークンを取り出す
+// 1.ドキュメントからトークンを取り出す
 // 2.トークンごとにポスティングリストを作って、それをメモリ上の転置インデックスに追加する
 // 3.メモリ上の転置インデックスがある程度のサイズになったら、ストレージ上の転置インデックスにマージする
 func (i *Indexer) AddDocument(doc Document) error {
-	// ストレージに文書を格納しIDを取得
+	// ストレージにドキュメントを格納し、ドキュメントIDを取得
 	docID, err := i.Storage.AddDocument(doc)
 	if err != nil {
 		return err
 	}
 	doc.ID = docID
 
-	// 文書から転置リストを構築
+	// ドキュメントからメモリ上の転置インデックスを更新
 	if err := i.updateMemoryInvertedIndexByDocument(doc); err != nil {
 		return err
 	}
 
-	// メモリ上の転置インデックスのサイズが閾値以下であれば処理終了
+	// メモリ上の転置インデックスのサイズが閾値以下であれば、処理終了
 	if len(i.InvertedIndex) < INDEX_SIZE_THRESHOLD {
 		return nil
 	}
@@ -44,14 +43,14 @@ func (i *Indexer) AddDocument(doc Document) error {
 		return err
 	}
 
-	// ストレージ上の転置インデックスにマージする
+	// メモリ上の転置インデックスとストレージ上の転置インデックスをマージする
 	for tokenID, postingList := range i.InvertedIndex {
-		storagePostingList := storageInvertedIndex[tokenID]
-		i.InvertedIndex[tokenID] = merge(postingList, storagePostingList)
+		i.InvertedIndex[tokenID] = merge(postingList, storageInvertedIndex[tokenID])
 	}
 	if err := i.Storage.UpsertInvertedIndex(i.InvertedIndex); err != nil {
 		return err
 	}
+
 	// メモリの転置インデックスをリセット
 	i.InvertedIndex = InvertedIndex{}
 	return nil
@@ -71,9 +70,7 @@ func (i *Indexer) updateMemoryInvertedIndexByDocument(doc Document) error {
 // トークンからメモリ上の転置インデックスを更新する
 func (i *Indexer) updateMemoryPostingListByToken(docID DocumentID, token Token, pos uint64) error {
 	// ストレージにIDの管理を任せる
-	if _, err := i.Storage.AddToken(NewToken(token.Term)); err != nil {
-		return err
-	}
+	i.Storage.AddToken(NewToken(token.Term))
 	token, err := i.Storage.GetTokenByTerm(token.Term)
 	if err != nil {
 		return err
