@@ -74,21 +74,19 @@ func (ms MatchSearcher) Search() ([]Document, error) {
 		return []Document{}, nil
 	}
 
-	ids := make([]TokenID, len(tokens))
-	for i, t := range tokens {
-		ids[i] = t.ID
-	}
 	// ストレージから転置リストを取得する
-	inverted, err := ms.storage.GetInvertedIndexByTokenIDs(ids)
+	inverted, err := ms.storage.GetInvertedIndexByTokenIDs(tokenIDs(tokens))
 	if err != nil {
 		return nil, err
 	}
+
 	// トークンごとのポスティングを取得
 	postings := make([]*Postings, len(inverted))
 	for i, t := range tokens {
 		postings[i] = inverted[t.ID].Postings
 	}
 
+	// ポスティングリストを走査
 	var matchedIds []DocumentID
 	if ms.logic == AND {
 		matchedIds = andMatch(postings)
@@ -96,6 +94,14 @@ func (ms MatchSearcher) Search() ([]Document, error) {
 		matchedIds = orMatch(postings)
 	}
 	return ms.storage.GetDocuments(matchedIds)
+}
+
+func tokenIDs(tokens []Token) []TokenID {
+	ids := make([]TokenID, len(tokens))
+	for i, t := range tokens {
+		ids[i] = t.ID
+	}
+	return ids
 }
 
 // AND検索
@@ -221,12 +227,8 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 		return []Document{}, nil
 	}
 
-	ids := make([]TokenID, len(tokens))
-	for i, t := range tokens {
-		ids[i] = t.ID
-	}
 	// ストレージから転置リストを取得する
-	inverted, err := ps.storage.GetInvertedIndexByTokenIDs(ids)
+	inverted, err := ps.storage.GetInvertedIndexByTokenIDs(tokenIDs(tokens))
 	if err != nil {
 		return nil, err
 	}
