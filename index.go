@@ -30,6 +30,27 @@ func NewPostingList(pl *Postings) PostingList {
 	}
 }
 
+func (p PostingList) Size() int {
+	size := 0
+	ps := p.Postings
+	for ps != nil {
+		ps = ps.Next
+		size++
+	}
+	return size
+}
+
+func (p PostingList) AppearanceCountInDocument(docID DocumentID) int {
+	count := 0
+	ps := p.Postings
+	for ps != nil {
+		if ps.DocumentID == docID {
+			count = len(ps.Positions)
+		}
+	}
+	return count
+}
+
 // ポスティング(文書IDのリンクリスト)
 type Postings struct {
 	DocumentID DocumentID // 文書のID

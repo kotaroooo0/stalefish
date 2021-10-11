@@ -1,6 +1,7 @@
 package stalefish
 
 type Storage interface {
+	CountDocuments() (int, error)
 	GetAllDocuments() ([]Document, error)                        // 全てのドキュメントを返す
 	GetDocuments([]DocumentID) ([]Document, error)               // 複数IDから複数ドキュメントを返す
 	AddDocument(Document) (DocumentID, error)                    // ドキュメントを挿入する。挿入したドキュメントのIDを返す
