@@ -49,7 +49,7 @@ func insertTokens(db *sqlx.DB, tokens []Token) error {
 }
 
 func insertInvertedIndex(db *sqlx.DB, invertedIndex InvertedIndex) error {
-	encoded, err := invertedIndex.encode()
+	encoded, err := encode(invertedIndex)
 	if err != nil {
 		return err
 	}
@@ -208,32 +208,27 @@ func TestAddToken(t *testing.T) {
 	}
 
 	cases := []struct {
-		token    Token
-		expected TokenID
+		token Token
 	}{
 		{
-			token:    NewToken("TestAddToken1"),
-			expected: 1,
+			token: NewToken("TestAddToken1"),
 		},
 		{
-			token:    NewToken("TestAddToken2"),
-			expected: 2,
+			token: NewToken("TestAddToken2"),
 		},
 		{
-			token:    NewToken("TestAddToken3"),
-			expected: 3,
+			token: NewToken("TestAddToken3"),
+		},
+		{
+			token: NewToken("TestAddToken4"),
 		},
 	}
 
 	storage := NewStorageRdbImpl(db)
 	for _, tt := range cases {
-		t.Run(fmt.Sprintf("token = %v, expected = %v", tt.token, tt.expected), func(t *testing.T) {
-			id, err := storage.AddToken(tt.token)
-			if err != nil {
+		t.Run(fmt.Sprintf("token = %v", tt.token), func(t *testing.T) {
+			if err := storage.AddToken(tt.token); err != nil {
 				t.Fatal(err)
-			}
-			if diff := cmp.Diff(id, tt.expected); diff != "" {
-				t.Fatalf("Diff: (-got +want)\n%s", diff)
 			}
 		})
 	}

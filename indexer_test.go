@@ -44,7 +44,7 @@ func TestIndexer_AddDocument(t *testing.T) {
 					TokenID(2): {NewPostings(DocumentID(1), []uint64{2}, nil)},
 				},
 			)
-			mockStorage.EXPECT().AddToken(gomock.Any()).Return(TokenID(999), nil).AnyTimes()
+			mockStorage.EXPECT().AddToken(gomock.Any()).Return(nil).AnyTimes()
 			mockStorage.EXPECT().AddDocument(tt.doc).Return(tt.doc.ID, nil).Times(1)
 			mockStorage.EXPECT().GetTokenByTerm("aa").Return(Token{ID: 0, Term: "aa"}, nil).Times(2)
 			mockStorage.EXPECT().GetTokenByTerm("bb").Return(Token{ID: 1, Term: "bb"}, nil).Times(1)
@@ -94,7 +94,7 @@ func TestIndexer_UpdateMemoryInvertedIndexByDocument(t *testing.T) {
 				Analyzer:      Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
 				InvertedIndex: InvertedIndex{},
 			}
-			mockStorage.EXPECT().AddToken(gomock.Any()).Return(TokenID(999), nil).AnyTimes()
+			mockStorage.EXPECT().AddToken(gomock.Any()).Return(nil).AnyTimes()
 			mockStorage.EXPECT().GetTokenByTerm("aa").Return(Token{ID: 0, Term: "aa"}, nil).Times(2)
 			mockStorage.EXPECT().GetTokenByTerm("bb").Return(Token{ID: 1, Term: "bb"}, nil).Times(1)
 			mockStorage.EXPECT().GetTokenByTerm("cc").Return(Token{ID: 2, Term: "cc"}, nil).Times(1)
@@ -175,7 +175,7 @@ func TestIndexer_UpdateMemoryInvertedIndexByToken(t *testing.T) {
 			mockStorage := NewMockStorage(mockCtrl)
 
 			// Given
-			mockStorage.EXPECT().AddToken(gomock.Any()).Return(TokenID(999), nil).AnyTimes()
+			mockStorage.EXPECT().AddToken(gomock.Any()).Return(nil).AnyTimes()
 			mockStorage.EXPECT().GetTokenByTerm("ab").Return(Token{ID: 2, Term: "ab"}, nil).AnyTimes()
 			mockStorage.EXPECT().GetTokenByTerm("abc").Return(Token{ID: 3, Term: "abc"}, nil).AnyTimes()
 			mockStorage.EXPECT().GetTokenByTerm("abcd").Return(Token{ID: 4, Term: "abcd"}, nil).AnyTimes()

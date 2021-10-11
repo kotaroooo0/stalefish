@@ -22,8 +22,8 @@ github.com/ikawaha/kagome-dict/ipa v1.0.2/go.mod h1:CmdUPFC1ISLK+ycFo8J6jYFVngDM
 github.com/ikawaha/kagome-dict/uni v1.1.1/go.mod h1:iipUtdM9UhHIfaY7Hq1ITLVix5OBZf/FgxMYZpGe5fg=
 github.com/ikawaha/kagome/v2 v2.4.4 h1:DAJDbjz6D5BtekIsow6laVRQ9y74CPKgNInR1l+q9B0=
 github.com/ikawaha/kagome/v2 v2.4.4/go.mod h1:4yR0rtgtJwfOZsnxXx87R4i8An11v4Mj+V6dTcJmwr4=
-github.com/jmoiron/sqlx v1.3.3 h1:j82X0bf7oQ27XeqxicSZsTU5suPwKElg3oyxNn43iTk=
-github.com/jmoiron/sqlx v1.3.3/go.mod h1:2BljVx/86SuTyjE+aPYlHCTNvZrnJXghYGpNiXLBMCQ=
+github.com/jmoiron/sqlx v1.3.4 h1:wv+0IJZfL5z0uZoUjlpKgHkgaFSYD+r9CfrXjEXsO7w=
+github.com/jmoiron/sqlx v1.3.4/go.mod h1:2BljVx/86SuTyjE+aPYlHCTNvZrnJXghYGpNiXLBMCQ=
 github.com/kljensen/snowball v0.6.0 h1:6DZLCcZeL0cLfodx+Md4/OLC6b/bfurWUOUGs1ydfOU=
 github.com/kljensen/snowball v0.6.0/go.mod h1:27N7E8fVU5H68RlUmnWwZCfxgt4POBJfENGMvNRhldw=
 github.com/kotaroooo0/gojaconv v0.0.0-20210223133819-8a8c2bab5241 h1:oxE0apnxBB1SIiQTZGr+t5TxchFv3DandUaFIm/WJOw=

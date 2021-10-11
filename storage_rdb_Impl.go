@@ -26,8 +26,8 @@ type StorageRdbImpl struct {
 	DB *sqlx.DB
 }
 
-func NewStorageRdbImpl(db *sqlx.DB) StorageRdbImpl {
-	return StorageRdbImpl{
+func NewStorageRdbImpl(db *sqlx.DB) *StorageRdbImpl {
+	return &StorageRdbImpl{
 		DB: db,
 	}
 }
@@ -50,7 +50,7 @@ func NewDBConfig(user, password, addr, port, db string) *DBConfig {
 	}
 }
 
-func (s StorageRdbImpl) GetAllDocuments() ([]Document, error) {
+func (s *StorageRdbImpl) GetAllDocuments() ([]Document, error) {
 	var docs []Document
 	if err := s.DB.Select(&docs, `select * from documents`); err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func (s StorageRdbImpl) GetAllDocuments() ([]Document, error) {
 	return docs, nil
 }
 
-func (s StorageRdbImpl) GetDocuments(ids []DocumentID) ([]Document, error) {
+func (s *StorageRdbImpl) GetDocuments(ids []DocumentID) ([]Document, error) {
 	if len(ids) == 0 {
 		return []Document{}, nil
 	}
@@ -78,7 +78,7 @@ func (s StorageRdbImpl) GetDocuments(ids []DocumentID) ([]Document, error) {
 	return docs, nil
 }
 
-func (s StorageRdbImpl) AddDocument(doc Document) (DocumentID, error) {
+func (s *StorageRdbImpl) AddDocument(doc Document) (DocumentID, error) {
 	res, err := s.DB.NamedExec(`insert into documents (body) values (:body)`,
 		map[string]interface{}{
 			"body": doc.Body,
@@ -94,29 +94,28 @@ func (s StorageRdbImpl) AddDocument(doc Document) (DocumentID, error) {
 	return DocumentID(insertedID), nil
 }
 
-// TODO: 同じトークンでもIDがインクリメントされ、IDがとびとびになる
-func (s StorageRdbImpl) AddToken(token Token) (TokenID, error) {
+func (s *StorageRdbImpl) AddToken(token Token) error {
 	res, err := s.DB.NamedExec(`insert into tokens (term) values (:term)`,
 		map[string]interface{}{
 			"term": token.Term,
-		})
+		},
+	)
 	if err != nil {
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			if mysqlErr.Number == 1062 {
-				return 0, nil
+				return nil
 			}
 		}
-		return 0, err
+		return err
 	}
 
-	insertedID, err := res.LastInsertId()
-	if err != nil {
-		return 0, err
+	if _, err := res.LastInsertId(); err != nil {
+		return err
 	}
-	return TokenID(insertedID), nil
+	return nil
 }
 
-func (s StorageRdbImpl) GetTokenByTerm(term string) (Token, error) {
+func (s *StorageRdbImpl) GetTokenByTerm(term string) (Token, error) {
 	var token Token
 	if err := s.DB.Get(&token, `select * from tokens where term = ?`, term); err != nil {
 		if err != sql.ErrNoRows {
@@ -127,7 +126,7 @@ func (s StorageRdbImpl) GetTokenByTerm(term string) (Token, error) {
 	return token, nil
 }
 
-func (s StorageRdbImpl) GetTokensByTerms(terms []string) ([]Token, error) {
+func (s *StorageRdbImpl) GetTokensByTerms(terms []string) ([]Token, error) {
 	if len(terms) == 0 {
 		return []Token{}, nil
 	}
@@ -144,7 +143,7 @@ func (s StorageRdbImpl) GetTokensByTerms(terms []string) ([]Token, error) {
 	return tokens, nil
 }
 
-func (s StorageRdbImpl) GetInvertedIndexByTokenIDs(ids []TokenID) (InvertedIndex, error) {
+func (s *StorageRdbImpl) GetInvertedIndexByTokenIDs(ids []TokenID) (InvertedIndex, error) {
 	if len(ids) == 0 {
 		return InvertedIndex{}, nil
 	}
@@ -164,17 +163,15 @@ func (s StorageRdbImpl) GetInvertedIndexByTokenIDs(ids []TokenID) (InvertedIndex
 	if err = s.DB.Select(&encoded, query, args...); err != nil {
 		return nil, err
 	}
-	// decoded, _ := encoded.decode()
 	return decode(encoded)
 }
 
-func (s StorageRdbImpl) UpsertInvertedIndex(inverted InvertedIndex) error {
-	encoded, err := inverted.encode()
+func (s *StorageRdbImpl) UpsertInvertedIndex(inverted InvertedIndex) error {
+	encoded, err := encode(inverted)
 	if err != nil {
 		return err
 	}
 
-	// NOTE: bulk upsertできない?
 	for _, v := range encoded {
 		_, err := s.DB.NamedExec(
 			`insert into inverted_indexes (token_id, posting_list)
@@ -187,9 +184,9 @@ func (s StorageRdbImpl) UpsertInvertedIndex(inverted InvertedIndex) error {
 	return nil
 }
 
-func (i InvertedIndex) encode() ([]EncodedInvertedIndex, error) {
+func encode(invertedIndex InvertedIndex) ([]EncodedInvertedIndex, error) {
 	encoded := make([]EncodedInvertedIndex, 0)
-	for k, v := range i {
+	for k, v := range invertedIndex {
 		// 差分を取る
 		var p *Postings = v.Postings
 		var beforeDocumentID DocumentID = 0
@@ -232,7 +229,7 @@ func decode(e []EncodedInvertedIndex) (InvertedIndex, error) {
 		}
 		pl := NewPostingList(p)
 
-		// 差分から本来のIDへ変換
+		// 差分から本来のIx｀Dへ変換
 		var c *Postings = pl.Postings
 		var beforeDocumentID DocumentID = 0
 		for c != nil {

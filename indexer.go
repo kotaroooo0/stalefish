@@ -70,7 +70,9 @@ func (i *Indexer) updateMemoryInvertedIndexByDocument(doc Document) error {
 // トークンからメモリ上の転置インデックスを更新する
 func (i *Indexer) updateMemoryPostingListByToken(docID DocumentID, token Token, pos uint64) error {
 	// ストレージにIDの管理を任せる
-	i.Storage.AddToken(NewToken(token.Term))
+	if err := i.Storage.AddToken(NewToken(token.Term)); err != nil {
+		return err
+	}
 	token, err := i.Storage.GetTokenByTerm(token.Term)
 	if err != nil {
 		return err
