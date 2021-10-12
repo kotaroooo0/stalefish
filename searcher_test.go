@@ -165,7 +165,7 @@ func TestMatchSearch(t *testing.T) {
 			mockStorage.EXPECT().GetDocuments(docIDs).Return(tt.expectedDocs, nil).AnyTimes()
 
 			// When
-			matchSearcher := NewMatchSearcher(tt.terms, tt.logic, mockStorage)
+			matchSearcher := NewMatchSearcher(tt.terms, tt.logic, mockStorage, nil)
 			actualDocs, err := matchSearcher.Search()
 			if err != nil {
 				t.Fatal(err)
@@ -277,7 +277,7 @@ func TestPhraseSearch(t *testing.T) {
 			mockStorage.EXPECT().GetDocuments(docIDs).Return(tt.expectedDocs, nil).AnyTimes()
 
 			// When
-			phraseSearcher := NewPhraseSearcher(tt.terms, mockStorage)
+			phraseSearcher := NewPhraseSearcher(tt.terms, mockStorage, nil)
 			actualDocs, err := phraseSearcher.Search()
 			if err != nil {
 				t.Fatal(err)

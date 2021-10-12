@@ -42,13 +42,15 @@ type MatchSearcher struct {
 	tokenStream *TokenStream
 	logic       Logic
 	storage     Storage
+	sorter      Sorter
 }
 
-func NewMatchSearcher(tokenStream *TokenStream, logic Logic, storage Storage) MatchSearcher {
+func NewMatchSearcher(tokenStream *TokenStream, logic Logic, storage Storage, sorter Sorter) MatchSearcher {
 	return MatchSearcher{
 		tokenStream: tokenStream,
 		logic:       logic,
 		storage:     storage,
+		sorter:      sorter,
 	}
 }
 
@@ -93,7 +95,14 @@ func (ms MatchSearcher) Search() ([]Document, error) {
 	} else if ms.logic == OR {
 		matchedIds = orMatch(postings)
 	}
-	return ms.storage.GetDocuments(matchedIds)
+	documents, err := ms.storage.GetDocuments(matchedIds)
+	if err != nil {
+		return nil, err
+	}
+	if ms.sorter == nil {
+		return documents, nil
+	}
+	return ms.sorter.Sort(documents), nil
 }
 
 func tokenIDs(tokens []Token) []TokenID {
@@ -193,12 +202,14 @@ func uniqueDocumentId(ids []DocumentID) []DocumentID {
 type PhraseSearcher struct {
 	tokenStream *TokenStream
 	storage     Storage
+	sorter      Sorter
 }
 
-func NewPhraseSearcher(tokenStream *TokenStream, storage Storage) PhraseSearcher {
+func NewPhraseSearcher(tokenStream *TokenStream, storage Storage, sorter Sorter) PhraseSearcher {
 	return PhraseSearcher{
 		tokenStream: tokenStream,
 		storage:     storage,
+		sorter:      sorter,
 	}
 }
 
@@ -261,7 +272,14 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 			break
 		}
 	}
-	return ps.storage.GetDocuments(matchedDocumentIDs)
+	documents, err := ps.storage.GetDocuments(matchedDocumentIDs)
+	if err != nil {
+		return nil, err
+	}
+	if ps.sorter == nil {
+		return documents, nil
+	}
+	return ps.sorter.Sort(documents), nil
 }
 
 // [
