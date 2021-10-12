@@ -30,13 +30,13 @@ func (s *TfIdfSorter) Sort(docs []Document, invertedIndex InvertedIndex, tokens 
 		var sum float64
 		for _, token := range tokens {
 			postingList := invertedIndex[token.ID]
-			tf := float64(postingList.AppearanceCountInDocument(doc.ID) / doc.TokenCount)
-			idf := math.Log(float64(allDocsCount) / float64(postingList.Size()+1))
+			tf := float64(postingList.AppearanceCountInDocument(doc.ID)) / float64(doc.TokenCount)
+			idf := math.Log2(float64(allDocsCount)/float64(postingList.Size())) + 1
 			sum += tf * idf
 		}
 		documentScores[i] = NewDocumentScore(doc, sum)
 	}
-	sort.Sort(documentScores)
+	sort.Sort(sort.Reverse(documentScores))
 	return documentScores.toDocuments(), nil
 }
 
