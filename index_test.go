@@ -33,3 +33,43 @@ func TestPushBack(t *testing.T) {
 		})
 	}
 }
+
+func TestAppearanceCountInDocument(t *testing.T) {
+	ps := NewPostings(1, []uint64{0}, NewPostings(2, []uint64{1, 2}, NewPostings(3, []uint64{3, 4, 5}, nil)))
+	tests := []struct {
+		postings *Postings
+		docID    DocumentID
+		want     int
+	}{
+		{
+			postings: ps,
+			docID:    1,
+			want:     1,
+		},
+		{
+			postings: ps,
+			docID:    2,
+			want:     2,
+		},
+		{
+			postings: ps,
+			docID:    3,
+			want:     3,
+		},
+		{
+			postings: ps,
+			docID:    4,
+			want:     0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("postings = %v, docID = %v, want = %v", tt.postings, tt.docID, tt.want), func(t *testing.T) {
+			p := PostingList{
+				Postings: tt.postings,
+			}
+			if got := p.AppearanceCountInDocument(tt.docID); got != tt.want {
+				t.Errorf("PostingList.AppearanceCountInDocument() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

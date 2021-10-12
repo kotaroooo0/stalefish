@@ -46,7 +46,9 @@ func (p PostingList) AppearanceCountInDocument(docID DocumentID) int {
 	for ps != nil {
 		if ps.DocumentID == docID {
 			count = len(ps.Positions)
+			break
 		}
+		ps = ps.Next
 	}
 	return count
 }
