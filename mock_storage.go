@@ -62,6 +62,21 @@ func (mr *MockStorageMockRecorder) AddToken(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddToken", reflect.TypeOf((*MockStorage)(nil).AddToken), arg0)
 }
 
+// CountDocuments mocks base method.
+func (m *MockStorage) CountDocuments() (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountDocuments")
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountDocuments indicates an expected call of CountDocuments.
+func (mr *MockStorageMockRecorder) CountDocuments() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountDocuments", reflect.TypeOf((*MockStorage)(nil).CountDocuments))
+}
+
 // GetAllDocuments mocks base method.
 func (m *MockStorage) GetAllDocuments() ([]Document, error) {
 	m.ctrl.T.Helper()

@@ -5,7 +5,8 @@ use stalefish;
 drop table if exists documents;
 create table documents (
     id integer not null auto_increment primary key,
-    body text not null
+    body text not null,
+    token_count integer not null
 );
 
 drop table if exists tokens;
@@ -28,7 +29,8 @@ use stalefish_test;
 drop table if exists documents;
 create table documents (
     id integer not null auto_increment primary key,
-    body text not null
+    body text not null,
+    token_count integer not null
 );
 
 drop table if exists tokens;

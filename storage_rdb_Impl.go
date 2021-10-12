@@ -79,7 +79,7 @@ func (s *StorageRdbImpl) GetDocuments(ids []DocumentID) ([]Document, error) {
 }
 
 func (s *StorageRdbImpl) AddDocument(doc Document) (DocumentID, error) {
-	res, err := s.DB.NamedExec(`insert into documents (body) values (:body)`,
+	res, err := s.DB.NamedExec(`insert into documents (body, token_count) values (:body, :token_count)`,
 		map[string]interface{}{
 			"body": doc.Body,
 		})
