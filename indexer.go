@@ -20,6 +20,9 @@ const INDEX_SIZE_THRESHOLD = 0
 // 2.トークンごとにポスティングリストを作って、それをメモリ上の転置インデックスに追加する
 // 3.メモリ上の転置インデックスがある程度のサイズになったら、ストレージ上の転置インデックスにマージする
 func (i *Indexer) AddDocument(doc Document) error {
+	tokens := i.Analyzer.Analyze(doc.Body)
+	doc.TokenCount = tokens.Size()
+
 	// ストレージにドキュメントを格納し、ドキュメントIDを取得
 	docID, err := i.Storage.AddDocument(doc)
 	if err != nil {
@@ -28,7 +31,7 @@ func (i *Indexer) AddDocument(doc Document) error {
 	doc.ID = docID
 
 	// ドキュメントからメモリ上の転置インデックスを更新
-	if err := i.updateMemoryInvertedIndexByDocument(doc); err != nil {
+	if err := i.updateMemoryInvertedIndexByDocument(docID, *tokens); err != nil {
 		return err
 	}
 
@@ -57,10 +60,9 @@ func (i *Indexer) AddDocument(doc Document) error {
 }
 
 // 文書からメモリ上の転置インデックスを更新する
-func (i *Indexer) updateMemoryInvertedIndexByDocument(doc Document) error {
-	tokens := i.Analyzer.Analyze(doc.Body)
+func (i *Indexer) updateMemoryInvertedIndexByDocument(docID DocumentID, tokens TokenStream) error {
 	for pos, token := range tokens.Tokens {
-		if err := i.updateMemoryPostingListByToken(doc.ID, token, uint64(pos)); err != nil {
+		if err := i.updateMemoryPostingListByToken(docID, token, uint64(pos)); err != nil {
 			return err
 		}
 	}

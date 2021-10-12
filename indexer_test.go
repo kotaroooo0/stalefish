@@ -14,7 +14,7 @@ func TestIndexer_AddDocument(t *testing.T) {
 		expected InvertedIndex
 	}{
 		{
-			doc: Document{ID: 2, Body: "aa bb cc aa"},
+			doc: Document{ID: 2, Body: "aa bb cc aa", TokenCount: 4},
 			expected: InvertedIndex(
 				map[TokenID]PostingList{
 					TokenID(0): {NewPostings(DocumentID(1), []uint64{0}, NewPostings(DocumentID(2), []uint64{0, 3}, NewPostings(DocumentID(3), []uint64{1}, nil)))},
@@ -62,11 +62,13 @@ func TestIndexer_AddDocument(t *testing.T) {
 
 func TestIndexer_UpdateMemoryInvertedIndexByDocument(t *testing.T) {
 	cases := []struct {
-		doc      Document
-		expected InvertedIndex
+		docID       DocumentID
+		tokenStream TokenStream
+		expected    InvertedIndex
 	}{
 		{
-			doc: Document{ID: 1, Body: "aa bb cc aa"},
+			docID:       1,
+			tokenStream: TokenStream{[]Token{Token{Term: "aa"}, Token{Term: "bb"}, Token{Term: "cc"}, Token{Term: "aa"}}},
 			expected: InvertedIndex{
 				0: PostingList{
 					Postings: NewPostings(1, []uint64{0, 3}, nil),
@@ -82,7 +84,7 @@ func TestIndexer_UpdateMemoryInvertedIndexByDocument(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		t.Run(fmt.Sprintf("doc = %v, expected = %v", tt.doc, tt.expected), func(t *testing.T) {
+		t.Run(fmt.Sprintf("doc = %v, tokenStream = %v, expected = %v", tt.docID, tt.tokenStream, tt.expected), func(t *testing.T) {
 			// Mock
 			mockCtrl := gomock.NewController(t)
 			defer mockCtrl.Finish()
@@ -100,7 +102,7 @@ func TestIndexer_UpdateMemoryInvertedIndexByDocument(t *testing.T) {
 			mockStorage.EXPECT().GetTokenByTerm("cc").Return(Token{ID: 2, Term: "cc"}, nil).Times(1)
 
 			// When
-			if err := indexer.updateMemoryInvertedIndexByDocument(tt.doc); err != nil {
+			if err := indexer.updateMemoryInvertedIndexByDocument(tt.docID, tt.tokenStream); err != nil {
 				t.Error(err)
 			}
 
