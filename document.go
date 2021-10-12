@@ -9,8 +9,9 @@ type Document struct {
 	TokenCount int    `db:"token_count"`
 }
 
-func NewDocument(body string) Document {
+func NewDocument(body string, tokenCount int) Document {
 	return Document{
-		Body: body,
+		Body:       body,
+		TokenCount: tokenCount,
 	}
 }

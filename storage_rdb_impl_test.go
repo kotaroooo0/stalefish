@@ -32,7 +32,7 @@ func truncateTableAll(db *sqlx.DB) error {
 
 func insertDocuments(db *sqlx.DB, docs []Document) error {
 	for _, doc := range docs {
-		if _, err := db.NamedExec(`insert into documents (body) values (:body)`, map[string]interface{}{"body": doc.Body}); err != nil {
+		if _, err := db.NamedExec(`insert into documents (body, token_count) values (:body, :token_count)`, map[string]interface{}{"body": doc.Body, "token_count": doc.TokenCount}); err != nil {
 			return err
 		}
 	}
@@ -73,9 +73,9 @@ func TestGetAllDocuments(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := insertDocuments(db, []Document{
-		NewDocument("TestGetAllDocuments1"),
-		NewDocument("TestGetAllDocuments2"),
-		NewDocument("TestGetAllDocuments3"),
+		NewDocument("TestGetAllDocuments1", 1),
+		NewDocument("TestGetAllDocuments2", 2),
+		NewDocument("TestGetAllDocuments3", 3),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -85,9 +85,9 @@ func TestGetAllDocuments(t *testing.T) {
 	}{
 		{
 			expected: []Document{
-				{ID: 1, Body: "TestGetAllDocuments1"},
-				{ID: 2, Body: "TestGetAllDocuments2"},
-				{ID: 3, Body: "TestGetAllDocuments3"},
+				{ID: 1, Body: "TestGetAllDocuments1", TokenCount: 1},
+				{ID: 2, Body: "TestGetAllDocuments2", TokenCount: 2},
+				{ID: 3, Body: "TestGetAllDocuments3", TokenCount: 3},
 			},
 		},
 	}
@@ -114,16 +114,16 @@ func TestGetDocuments(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := insertDocuments(db, []Document{
-		NewDocument("TestGetDocuments1"),
-		NewDocument("TestGetDocuments2"),
-		NewDocument("TestGetDocuments3"),
+		NewDocument("TestGetDocuments1", 4),
+		NewDocument("TestGetDocuments2", 5),
+		NewDocument("TestGetDocuments3", 6),
 	}); err != nil {
 		t.Fatal(err)
 	}
 
-	expectedDoc1 := Document{ID: 1, Body: "TestGetDocuments1"}
-	expectedDoc2 := Document{ID: 2, Body: "TestGetDocuments2"}
-	expectedDoc3 := Document{ID: 3, Body: "TestGetDocuments3"}
+	expectedDoc1 := Document{ID: 1, Body: "TestGetDocuments1", TokenCount: 4}
+	expectedDoc2 := Document{ID: 2, Body: "TestGetDocuments2", TokenCount: 5}
+	expectedDoc3 := Document{ID: 3, Body: "TestGetDocuments3", TokenCount: 6}
 
 	cases := []struct {
 		ids      []DocumentID
@@ -171,15 +171,15 @@ func TestAddDocument(t *testing.T) {
 		expected DocumentID
 	}{
 		{
-			doc:      NewDocument("TestAddDocument1"),
+			doc:      NewDocument("TestAddDocument1", 3),
 			expected: 1,
 		},
 		{
-			doc:      NewDocument("TestAddDocument2"),
+			doc:      NewDocument("TestAddDocument2", 6),
 			expected: 2,
 		},
 		{
-			doc:      NewDocument("TestAddDocument3"),
+			doc:      NewDocument("TestAddDocument3", 9),
 			expected: 3,
 		},
 	}
