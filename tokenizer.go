@@ -58,8 +58,9 @@ func NewNgramTokenizer(n int) *NgramTokenizer {
 }
 
 func (t *NgramTokenizer) Tokenize(s string) *TokenStream {
-	tokens := make([]Token, len([]rune(s))+1-t.n)
-	for i := 0; i < len([]rune(s))+1-t.n; i++ {
+	count := len([]rune(s)) + 1 - t.n
+	tokens := make([]Token, count)
+	for i := 0; i < count; i++ {
 		tokens[i] = NewToken(string([]rune(s)[i : i+t.n]))
 	}
 	return NewTokenStream(tokens)
