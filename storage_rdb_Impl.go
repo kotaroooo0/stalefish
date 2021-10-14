@@ -50,6 +50,15 @@ func NewDBConfig(user, password, addr, port, db string) *DBConfig {
 	}
 }
 
+func (s *StorageRdbImpl) CountDocuments() (int, error) {
+	var count int
+	row := s.DB.QueryRow(`select count(*) from documents`)
+	if err := row.Scan(&count); err != nil {
+		return -1, err
+	}
+	return count, nil
+}
+
 func (s *StorageRdbImpl) GetAllDocuments() ([]Document, error) {
 	var docs []Document
 	if err := s.DB.Select(&docs, `select * from documents`); err != nil {

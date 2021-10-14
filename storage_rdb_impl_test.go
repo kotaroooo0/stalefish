@@ -8,7 +8,6 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/go-cmp/cmp"
-
 	"github.com/jmoiron/sqlx"
 )
 
@@ -62,6 +61,47 @@ func insertInvertedIndex(db *sqlx.DB, invertedIndex InvertedIndex) error {
 		}
 	}
 	return nil
+}
+
+func TestStorageRdbImpl_CountDocuments(t *testing.T) {
+	db, err := NewTestDBClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := truncateTableAll(db); err != nil {
+		t.Fatal(err)
+	}
+	if err := insertDocuments(db, []Document{
+		{Body: "TestGetAllDocuments1", TokenCount: 1},
+		{Body: "TestGetAllDocuments2", TokenCount: 2},
+		{Body: "TestGetAllDocuments3", TokenCount: 3},
+		{Body: "TestGetAllDocuments4", TokenCount: 3},
+		{Body: "TestGetAllDocuments5", TokenCount: 3},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		expected int
+	}{
+		{
+			expected: 5,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("expected = %v", tt.expected), func(t *testing.T) {
+			s := &StorageRdbImpl{
+				DB: db,
+			}
+			got, err := s.CountDocuments()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.expected {
+				t.Errorf("StorageRdbImpl.CountDocuments() = %v, expected %v", got, tt.expected)
+			}
+		})
+	}
 }
 
 func TestGetAllDocuments(t *testing.T) {
