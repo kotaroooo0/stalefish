@@ -6,7 +6,7 @@ import (
 )
 
 type Sorter interface {
-	Sort([]Document) []Document
+	Sort([]Document, InvertedIndex, []Token) ([]Document, error)
 }
 
 type TfIdfSorter struct {
