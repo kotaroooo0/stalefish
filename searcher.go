@@ -102,7 +102,7 @@ func (ms MatchSearcher) Search() ([]Document, error) {
 	if ms.sorter == nil {
 		return documents, nil
 	}
-	return ms.sorter.Sort(documents), nil
+	return ms.sorter.Sort(documents, inverted, tokens)
 }
 
 func tokenIDs(tokens []Token) []TokenID {
@@ -279,7 +279,7 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 	if ps.sorter == nil {
 		return documents, nil
 	}
-	return ps.sorter.Sort(documents), nil
+	return ps.sorter.Sort(documents, inverted, tokens)
 }
 
 // [
@@ -306,10 +306,11 @@ func isPhraseMatch(tokenStream *TokenStream, postings []*Postings) bool {
 }
 
 func decrementUintSlice(s []uint64, n uint64) []uint64 {
+	result := make([]uint64, len(s))
 	for i, e := range s {
-		s[i] = e - n
+		result[i] = e - n
 	}
-	return s
+	return result
 }
 
 func hasCommonElement(s1 []uint64, s2 []uint64) bool {
