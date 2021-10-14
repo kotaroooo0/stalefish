@@ -46,3 +46,21 @@ func (t *MorphologicalTokenizer) Tokenize(s string) *TokenStream {
 	}
 	return NewTokenStream(tokens)
 }
+
+type NgramTokenizer struct {
+	n int
+}
+
+func NewNgramTokenizer(n int) *NgramTokenizer {
+	return &NgramTokenizer{
+		n: n,
+	}
+}
+
+func (t *NgramTokenizer) Tokenize(s string) *TokenStream {
+	tokens := make([]Token, len([]rune(s))+1-t.n)
+	for i := 0; i < len([]rune(s))+1-t.n; i++ {
+		tokens[i] = NewToken(string([]rune(s)[i : i+t.n]))
+	}
+	return NewTokenStream(tokens)
+}
