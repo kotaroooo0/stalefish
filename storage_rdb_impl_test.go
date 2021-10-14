@@ -73,9 +73,9 @@ func TestGetAllDocuments(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := insertDocuments(db, []Document{
-		NewDocument("TestGetAllDocuments1", 1),
-		NewDocument("TestGetAllDocuments2", 2),
-		NewDocument("TestGetAllDocuments3", 3),
+		{Body: "TestGetAllDocuments1", TokenCount: 1},
+		{Body: "TestGetAllDocuments2", TokenCount: 2},
+		{Body: "TestGetAllDocuments3", TokenCount: 3},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -114,9 +114,9 @@ func TestGetDocuments(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := insertDocuments(db, []Document{
-		NewDocument("TestGetDocuments1", 4),
-		NewDocument("TestGetDocuments2", 5),
-		NewDocument("TestGetDocuments3", 6),
+		{Body: "TestGetDocuments1", TokenCount: 4},
+		{Body: "TestGetDocuments2", TokenCount: 5},
+		{Body: "TestGetDocuments3", TokenCount: 6},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -171,15 +171,15 @@ func TestAddDocument(t *testing.T) {
 		expected DocumentID
 	}{
 		{
-			doc:      NewDocument("TestAddDocument1", 3),
+			doc:      Document{Body: "TestAddDocument1", TokenCount: 3},
 			expected: 1,
 		},
 		{
-			doc:      NewDocument("TestAddDocument2", 6),
+			doc:      Document{Body: "TestAddDocument2", TokenCount: 6},
 			expected: 2,
 		},
 		{
-			doc:      NewDocument("TestAddDocument3", 9),
+			doc:      Document{Body: "TestAddDocument3", TokenCount: 9},
 			expected: 3,
 		},
 	}
