@@ -11,7 +11,7 @@ func TestAnalyze(t *testing.T) {
 	cases := []struct {
 		analyzer Analyzer
 		text     string
-		tokens   *TokenStream
+		tokens   TokenStream
 	}{
 		{
 			analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},

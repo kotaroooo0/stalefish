@@ -26,8 +26,8 @@ type StorageRdbImpl struct {
 	DB *sqlx.DB
 }
 
-func NewStorageRdbImpl(db *sqlx.DB) *StorageRdbImpl {
-	return &StorageRdbImpl{
+func NewStorageRdbImpl(db *sqlx.DB) StorageRdbImpl {
+	return StorageRdbImpl{
 		DB: db,
 	}
 }
@@ -50,7 +50,7 @@ func NewDBConfig(user, password, addr, port, db string) *DBConfig {
 	}
 }
 
-func (s *StorageRdbImpl) CountDocuments() (int, error) {
+func (s StorageRdbImpl) CountDocuments() (int, error) {
 	var count int
 	row := s.DB.QueryRow(`select count(*) from documents`)
 	if err := row.Scan(&count); err != nil {
@@ -59,7 +59,7 @@ func (s *StorageRdbImpl) CountDocuments() (int, error) {
 	return count, nil
 }
 
-func (s *StorageRdbImpl) GetAllDocuments() ([]Document, error) {
+func (s StorageRdbImpl) GetAllDocuments() ([]Document, error) {
 	var docs []Document
 	if err := s.DB.Select(&docs, `select * from documents`); err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ func (s *StorageRdbImpl) GetAllDocuments() ([]Document, error) {
 	return docs, nil
 }
 
-func (s *StorageRdbImpl) GetDocuments(ids []DocumentID) ([]Document, error) {
+func (s StorageRdbImpl) GetDocuments(ids []DocumentID) ([]Document, error) {
 	if len(ids) == 0 {
 		return []Document{}, nil
 	}
@@ -87,7 +87,7 @@ func (s *StorageRdbImpl) GetDocuments(ids []DocumentID) ([]Document, error) {
 	return docs, nil
 }
 
-func (s *StorageRdbImpl) AddDocument(doc Document) (DocumentID, error) {
+func (s StorageRdbImpl) AddDocument(doc Document) (DocumentID, error) {
 	res, err := s.DB.NamedExec(`insert into documents (body, token_count) values (:body, :token_count)`,
 		map[string]interface{}{
 			"body":        doc.Body,
@@ -104,7 +104,7 @@ func (s *StorageRdbImpl) AddDocument(doc Document) (DocumentID, error) {
 	return DocumentID(insertedID), nil
 }
 
-func (s *StorageRdbImpl) AddToken(token Token) error {
+func (s StorageRdbImpl) AddToken(token Token) error {
 	res, err := s.DB.NamedExec(`insert into tokens (term) values (:term)`,
 		map[string]interface{}{
 			"term": token.Term,
@@ -125,7 +125,7 @@ func (s *StorageRdbImpl) AddToken(token Token) error {
 	return nil
 }
 
-func (s *StorageRdbImpl) GetTokenByTerm(term string) (Token, error) {
+func (s StorageRdbImpl) GetTokenByTerm(term string) (Token, error) {
 	var token Token
 	if err := s.DB.Get(&token, `select * from tokens where term = ?`, term); err != nil {
 		if err != sql.ErrNoRows {
@@ -136,7 +136,7 @@ func (s *StorageRdbImpl) GetTokenByTerm(term string) (Token, error) {
 	return token, nil
 }
 
-func (s *StorageRdbImpl) GetTokensByTerms(terms []string) ([]Token, error) {
+func (s StorageRdbImpl) GetTokensByTerms(terms []string) ([]Token, error) {
 	if len(terms) == 0 {
 		return []Token{}, nil
 	}
@@ -153,7 +153,7 @@ func (s *StorageRdbImpl) GetTokensByTerms(terms []string) ([]Token, error) {
 	return tokens, nil
 }
 
-func (s *StorageRdbImpl) GetInvertedIndexByTokenIDs(ids []TokenID) (InvertedIndex, error) {
+func (s StorageRdbImpl) GetInvertedIndexByTokenIDs(ids []TokenID) (InvertedIndex, error) {
 	if len(ids) == 0 {
 		return InvertedIndex{}, nil
 	}
@@ -176,7 +176,7 @@ func (s *StorageRdbImpl) GetInvertedIndexByTokenIDs(ids []TokenID) (InvertedInde
 	return decode(encoded)
 }
 
-func (s *StorageRdbImpl) UpsertInvertedIndex(inverted InvertedIndex) error {
+func (s StorageRdbImpl) UpsertInvertedIndex(inverted InvertedIndex) error {
 	encoded, err := encode(inverted)
 	if err != nil {
 		return err

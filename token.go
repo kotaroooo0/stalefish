@@ -28,17 +28,17 @@ type TokenStream struct {
 	Tokens []Token
 }
 
-func NewTokenStream(tokens []Token) *TokenStream {
-	return &TokenStream{
+func NewTokenStream(tokens []Token) TokenStream {
+	return TokenStream{
 		Tokens: tokens,
 	}
 }
 
-func (ts *TokenStream) Size() int {
+func (ts TokenStream) Size() int {
 	return len(ts.Tokens)
 }
 
-func (ts *TokenStream) Terms() []string {
+func (ts TokenStream) Terms() []string {
 	terms := make([]string, ts.Size())
 	for i, t := range ts.Tokens {
 		terms[i] = t.Term

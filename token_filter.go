@@ -26,7 +26,7 @@ func (c CharType) String() string {
 }
 
 type TokenFilter interface {
-	Filter(*TokenStream) *TokenStream
+	Filter(TokenStream) TokenStream
 }
 
 type LowercaseFilter struct{}
@@ -35,7 +35,7 @@ func NewLowercaseFilter() LowercaseFilter {
 	return LowercaseFilter{}
 }
 
-func (f LowercaseFilter) Filter(tokenStream *TokenStream) *TokenStream {
+func (f LowercaseFilter) Filter(tokenStream TokenStream) TokenStream {
 	r := make([]Token, tokenStream.Size())
 	for i, token := range tokenStream.Tokens {
 		lower := strings.ToLower(token.Term)
@@ -54,7 +54,7 @@ func NewStopWordFilter(stopWords []string) StopWordFilter {
 	}
 }
 
-func (f StopWordFilter) Filter(tokenStream *TokenStream) *TokenStream {
+func (f StopWordFilter) Filter(tokenStream TokenStream) TokenStream {
 	stopwords := make(map[string]struct{})
 	for _, w := range f.StopWords {
 		stopwords[w] = struct{}{}
@@ -74,7 +74,7 @@ func NewStemmerFilter() StemmerFilter {
 	return StemmerFilter{}
 }
 
-func (f StemmerFilter) Filter(tokenStream *TokenStream) *TokenStream {
+func (f StemmerFilter) Filter(tokenStream TokenStream) TokenStream {
 	r := make([]Token, tokenStream.Size())
 	for i, token := range tokenStream.Tokens {
 		stemmed := english.Stem(token.Term, false)
@@ -93,7 +93,7 @@ func NewReadingformFilter(charType CharType) ReadingformFilter {
 	}
 }
 
-func (f ReadingformFilter) Filter(tokenStream *TokenStream) *TokenStream {
+func (f ReadingformFilter) Filter(tokenStream TokenStream) TokenStream {
 	// ローマ字に指定されていたらローマ字に変換する、それ以外ではカナに変換する
 	if f.charType == Romaji {
 		for i, token := range tokenStream.Tokens {

@@ -40,7 +40,7 @@ func TestMatchSearch(t *testing.T) {
 	doc3 := Document{ID: 3, Body: "ff aa bb"}
 
 	cases := []struct {
-		terms        *TokenStream
+		terms        TokenStream
 		logic        Logic
 		expectedDocs []Document
 	}{
@@ -185,7 +185,7 @@ func TestPhraseSearch(t *testing.T) {
 	doc3 := Document{ID: 3, Body: "ff aa bb"}
 
 	cases := []struct {
-		terms        *TokenStream
+		terms        TokenStream
 		expectedDocs []Document
 	}{
 		{

@@ -10,17 +10,17 @@ type Sorter interface {
 }
 
 type TfIdfSorter struct {
-	Storage Storage
+	storage Storage
 }
 
 func NewTfIdfSorter(storage Storage) *TfIdfSorter {
 	return &TfIdfSorter{
-		Storage: storage,
+		storage: storage,
 	}
 }
 
 func (s *TfIdfSorter) Sort(docs []Document, invertedIndex InvertedIndex, tokens []Token) ([]Document, error) {
-	allDocsCount, err := s.Storage.CountDocuments()
+	allDocsCount, err := s.storage.CountDocuments()
 	if err != nil {
 		return nil, err
 	}
@@ -31,7 +31,7 @@ func (s *TfIdfSorter) Sort(docs []Document, invertedIndex InvertedIndex, tokens 
 		for _, token := range tokens {
 			postingList := invertedIndex[token.ID]
 			tf := float64(postingList.AppearanceCountInDocument(doc.ID)) / float64(doc.TokenCount)
-			idf := math.Log2(float64(allDocsCount)/float64(postingList.Size())) + 1
+			idf := math.Log2(float64(allDocsCount)/float64(postingList.Size()+1)) + 1
 			sum += tf * idf
 		}
 		documentScores[i] = NewDocumentScore(doc, sum)
