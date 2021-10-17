@@ -33,9 +33,9 @@ func TestIndexer_AddDocument(t *testing.T) {
 
 			// Given
 			i := &Indexer{
-				Storage:       mockStorage,
-				Analyzer:      NewAnalyzer([]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}),
-				InvertedIndex: make(InvertedIndex),
+				storage:       mockStorage,
+				analyzer:      NewAnalyzer([]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}),
+				invertedIndex: make(InvertedIndex),
 			}
 			invertedIndex := InvertedIndex(
 				map[TokenID]PostingList{
@@ -68,7 +68,7 @@ func TestIndexer_UpdateMemoryInvertedIndexByDocument(t *testing.T) {
 	}{
 		{
 			docID:       1,
-			tokenStream: TokenStream{[]Token{Token{Term: "aa"}, Token{Term: "bb"}, Token{Term: "cc"}, Token{Term: "aa"}}},
+			tokenStream: TokenStream{[]Token{{Term: "aa"}, {Term: "bb"}, {Term: "cc"}, {Term: "aa"}}},
 			expected: InvertedIndex{
 				0: PostingList{
 					Postings: NewPostings(1, []uint64{0, 3}, nil),
@@ -91,10 +91,10 @@ func TestIndexer_UpdateMemoryInvertedIndexByDocument(t *testing.T) {
 			mockStorage := NewMockStorage(mockCtrl)
 
 			// Given
-			indexer := Indexer{
-				Storage:       mockStorage,
-				Analyzer:      Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
-				InvertedIndex: InvertedIndex{},
+			indexer := &Indexer{
+				storage:       mockStorage,
+				analyzer:      Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
+				invertedIndex: InvertedIndex{},
 			}
 			mockStorage.EXPECT().AddToken(gomock.Any()).Return(nil).AnyTimes()
 			mockStorage.EXPECT().GetTokenByTerm("aa").Return(Token{ID: 0, Term: "aa"}, nil).Times(2)
@@ -107,7 +107,7 @@ func TestIndexer_UpdateMemoryInvertedIndexByDocument(t *testing.T) {
 			}
 
 			// Then
-			if diff := cmp.Diff(indexer.InvertedIndex, tt.expected); diff != "" {
+			if diff := cmp.Diff(indexer.invertedIndex, tt.expected); diff != "" {
 				t.Errorf("Diff: (-got +want)\n%s", diff)
 			}
 		})
@@ -181,10 +181,10 @@ func TestIndexer_UpdateMemoryInvertedIndexByToken(t *testing.T) {
 			mockStorage.EXPECT().GetTokenByTerm("ab").Return(Token{ID: 2, Term: "ab"}, nil).AnyTimes()
 			mockStorage.EXPECT().GetTokenByTerm("abc").Return(Token{ID: 3, Term: "abc"}, nil).AnyTimes()
 			mockStorage.EXPECT().GetTokenByTerm("abcd").Return(Token{ID: 4, Term: "abcd"}, nil).AnyTimes()
-			indexer := Indexer{
-				Storage:  mockStorage,
-				Analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
-				InvertedIndex: InvertedIndex{
+			indexer := &Indexer{
+				storage:  mockStorage,
+				analyzer: Analyzer{[]CharFilter{}, NewStandardTokenizer(), []TokenFilter{}},
+				invertedIndex: InvertedIndex{
 					TokenID(3): PostingList{
 						Postings: &Postings{DocumentID: 1, Positions: []uint64{1}, Next: nil},
 					},
@@ -200,7 +200,7 @@ func TestIndexer_UpdateMemoryInvertedIndexByToken(t *testing.T) {
 			}
 
 			// Then
-			if diff := cmp.Diff(indexer.InvertedIndex, tt.expected); diff != "" {
+			if diff := cmp.Diff(indexer.invertedIndex, tt.expected); diff != "" {
 				t.Errorf("Diff: (-got +want)\n%s", diff)
 			}
 		})

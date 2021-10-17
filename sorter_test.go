@@ -54,7 +54,7 @@ func TestTfIdfSorter_Sort(t *testing.T) {
 
 			// Then
 			s := &TfIdfSorter{
-				Storage: mockStorage,
+				storage: mockStorage,
 			}
 			mockStorage.EXPECT().CountDocuments().Return(3, nil)
 

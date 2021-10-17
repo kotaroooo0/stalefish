@@ -8,16 +8,16 @@ import (
 )
 
 type Tokenizer interface {
-	Tokenize(string) *TokenStream
+	Tokenize(string) TokenStream
 }
 
 type StandardTokenizer struct{}
 
-func NewStandardTokenizer() *StandardTokenizer {
-	return &StandardTokenizer{}
+func NewStandardTokenizer() StandardTokenizer {
+	return StandardTokenizer{}
 }
 
-func (t *StandardTokenizer) Tokenize(s string) *TokenStream {
+func (t StandardTokenizer) Tokenize(s string) TokenStream {
 	terms := strings.FieldsFunc(s, func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
 	})
@@ -32,13 +32,13 @@ type MorphologicalTokenizer struct {
 	morphology morphology.Morphology
 }
 
-func NewMorphologicalTokenizer(morphology morphology.Morphology) *MorphologicalTokenizer {
-	return &MorphologicalTokenizer{
+func NewMorphologicalTokenizer(morphology morphology.Morphology) MorphologicalTokenizer {
+	return MorphologicalTokenizer{
 		morphology: morphology,
 	}
 }
 
-func (t *MorphologicalTokenizer) Tokenize(s string) *TokenStream {
+func (t MorphologicalTokenizer) Tokenize(s string) TokenStream {
 	mTokens := t.morphology.Analyze(s)
 	tokens := make([]Token, len(mTokens))
 	for i, t := range mTokens {
@@ -51,13 +51,13 @@ type NgramTokenizer struct {
 	n int
 }
 
-func NewNgramTokenizer(n int) *NgramTokenizer {
-	return &NgramTokenizer{
+func NewNgramTokenizer(n int) NgramTokenizer {
+	return NgramTokenizer{
 		n: n,
 	}
 }
 
-func (t *NgramTokenizer) Tokenize(s string) *TokenStream {
+func (t NgramTokenizer) Tokenize(s string) TokenStream {
 	count := len([]rune(s)) + 1 - t.n
 	tokens := make([]Token, count)
 	for i := 0; i < count; i++ {

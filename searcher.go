@@ -39,13 +39,13 @@ func (ms MatchAllSearcher) Search() ([]Document, error) {
 }
 
 type MatchSearcher struct {
-	tokenStream *TokenStream
+	tokenStream TokenStream
 	logic       Logic
 	storage     Storage
 	sorter      Sorter
 }
 
-func NewMatchSearcher(tokenStream *TokenStream, logic Logic, storage Storage, sorter Sorter) MatchSearcher {
+func NewMatchSearcher(tokenStream TokenStream, logic Logic, storage Storage, sorter Sorter) MatchSearcher {
 	return MatchSearcher{
 		tokenStream: tokenStream,
 		logic:       logic,
@@ -200,12 +200,12 @@ func uniqueDocumentId(ids []DocumentID) []DocumentID {
 }
 
 type PhraseSearcher struct {
-	tokenStream *TokenStream
+	tokenStream TokenStream
 	storage     Storage
 	sorter      Sorter
 }
 
-func NewPhraseSearcher(tokenStream *TokenStream, storage Storage, sorter Sorter) PhraseSearcher {
+func NewPhraseSearcher(tokenStream TokenStream, storage Storage, sorter Sorter) PhraseSearcher {
 	return PhraseSearcher{
 		tokenStream: tokenStream,
 		storage:     storage,
@@ -288,7 +288,7 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 //	[7],
 // ]
 // が与えられて、相対ポジションに変換してintスライス間で共通する要素があるか判定する
-func isPhraseMatch(tokenStream *TokenStream, postings []*Postings) bool {
+func isPhraseMatch(tokenStream TokenStream, postings []*Postings) bool {
 	// 相対ポジションリストを作る
 	relativePositionsList := make([][]uint64, tokenStream.Size())
 	for i := 0; i < tokenStream.Size(); i++ {
