@@ -119,12 +119,10 @@ func andMatch(postings []*Postings) []DocumentID {
 	for notAllNil(postings) {
 		if isSameDocumentId(postings) {
 			ids = append(ids, postings[0].DocumentID)
-			for i := range postings {
-				postings[i] = postings[i].Next
-			}
+			next(postings)
 			continue
 		}
-		idx := minIdx(postings)
+		idx := minDocumentIDIndex(postings)
 		postings[idx] = postings[idx].Next
 	}
 	return ids
@@ -146,7 +144,7 @@ func orMatch(postings []*Postings) []DocumentID {
 }
 
 // 最小のドキュメントIDを持つポスティングリストのインデックス
-func minIdx(postings []*Postings) int {
+func minDocumentIDIndex(postings []*Postings) int {
 	min := 0
 	for i := 1; i < len(postings); i++ {
 		if postings[min].DocumentID > postings[i].DocumentID {
@@ -174,6 +172,12 @@ func notAllNil(postings []*Postings) bool {
 		}
 	}
 	return true
+}
+
+func next(postings []*Postings) {
+	for i := range postings {
+		postings[i] = postings[i].Next
+	}
 }
 
 // 全てのポスティングリストがnil
@@ -264,7 +268,7 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 			}
 		} else {
 			// 一番小さいカーソルを動かす
-			idx := minIdx(postings)
+			idx := minDocumentIDIndex(postings)
 			postings[idx] = postings[idx].Next
 		}
 
