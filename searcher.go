@@ -217,14 +217,6 @@ func NewPhraseSearcher(tokenStream TokenStream, storage Storage, sorter Sorter) 
 	}
 }
 
-// フレーズ検索 AND
-// 1, 検索クエリをトークン分割
-// 2, そのトークンが出現する文書数が少ない順にソートする
-// 3, それぞれのトークンのポスティングリストを取り出し、文書IDとその出現位置のリストを取り出す
-// 4, 全てのトークンで同一の文書IDが含まれ、かつ、各トークンの出現位置が連接していれば検索結果に追加する
-// 5, 検索結果に追加した各文書と検索クエリのスコアを計算する
-// 6, 検索結果を適合度の降順に並べ替える
-// 7, 並び替えられた検索結果のうち、上位のものを検索結果として返す
 func (ps PhraseSearcher) Search() ([]Document, error) {
 	// トークンストリームが空ならマッチするドキュメントなし
 	if ps.tokenStream.Size() == 0 {
@@ -255,27 +247,21 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 	}
 
 	var matchedDocumentIDs []DocumentID
-	for {
+	for notAllNil(postings) {
 		if isSameDocumentId(postings) { // カーソルが指す全てのDocIDが等しい時
 			// フレーズが等しければ結果に追加
 			if isPhraseMatch(ps.tokenStream, postings) {
 				matchedDocumentIDs = append(matchedDocumentIDs, postings[0].DocumentID)
 			}
-
 			// カーソルを全て動かす
-			for i := range postings {
-				postings[i] = postings[i].Next
-			}
-		} else {
-			// 一番小さいカーソルを動かす
-			idx := minDocumentIDIndex(postings)
-			postings[idx] = postings[idx].Next
+			next(postings)
+			continue
 		}
-
-		if !notAllNil(postings) {
-			break
-		}
+		// 一番小さいカーソルを動かす
+		idx := minDocumentIDIndex(postings)
+		postings[idx] = postings[idx].Next
 	}
+
 	documents, err := ps.storage.GetDocuments(matchedDocumentIDs)
 	if err != nil {
 		return nil, err
