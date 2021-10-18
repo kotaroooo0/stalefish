@@ -10,11 +10,11 @@ type MappingCharFilter struct {
 	mapper map[string]string // key->valueにマッピングする
 }
 
-func NewMappingCharFilter(mapper map[string]string) *MappingCharFilter {
-	return &MappingCharFilter{mapper: mapper}
+func NewMappingCharFilter(mapper map[string]string) MappingCharFilter {
+	return MappingCharFilter{mapper: mapper}
 }
 
-func (c *MappingCharFilter) Filter(s string) string {
+func (c MappingCharFilter) Filter(s string) string {
 	for k, v := range c.mapper {
 		s = strings.Replace(s, k, v, -1)
 	}

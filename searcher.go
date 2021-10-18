@@ -132,13 +132,13 @@ func andMatch(postings []*Postings) []DocumentID {
 
 // OR検索
 func orMatch(postings []*Postings) []DocumentID {
-	var ids []DocumentID = make([]DocumentID, 0)
+	ids := []DocumentID{}
 	for !allNil(postings) {
-		for i, l := range postings {
-			if l == nil {
+		for i, p := range postings {
+			if p == nil {
 				continue
 			}
-			ids = append(ids, l.DocumentID)
+			ids = append(ids, p.DocumentID)
 			postings[i] = postings[i].Next
 		}
 	}

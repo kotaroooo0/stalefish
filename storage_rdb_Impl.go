@@ -239,7 +239,7 @@ func decode(e []EncodedInvertedIndex) (InvertedIndex, error) {
 		}
 		pl := NewPostingList(p)
 
-		// 差分から本来のIx｀Dへ変換
+		// 差分から本来のIDへ変換
 		var c *Postings = pl.Postings
 		var beforeDocumentID DocumentID = 0
 		for c != nil {

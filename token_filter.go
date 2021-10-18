@@ -7,24 +7,6 @@ import (
 	"github.com/kotaroooo0/gojaconv/jaconv"
 )
 
-type CharType int
-
-const (
-	Kana   CharType = iota + 1 // カナ
-	Romaji                     // ローマ字
-)
-
-func (c CharType) String() string {
-	switch c {
-	case Kana:
-		return "Kana"
-	case Romaji:
-		return "Romaji"
-	default:
-		return "Unknown"
-	}
-}
-
 type TokenFilter interface {
 	Filter(TokenStream) TokenStream
 }
@@ -83,25 +65,27 @@ func (f StemmerFilter) Filter(tokenStream TokenStream) TokenStream {
 	return NewTokenStream(r)
 }
 
-type ReadingformFilter struct {
-	charType CharType
+type RomajiReadingformFilter struct{}
+
+func NewRomajiReadingformFilter() RomajiReadingformFilter {
+	return RomajiReadingformFilter{}
 }
 
-func NewReadingformFilter(charType CharType) ReadingformFilter {
-	return ReadingformFilter{
-		charType: charType,
+func (f RomajiReadingformFilter) Filter(tokenStream TokenStream) TokenStream {
+	for i, token := range tokenStream.Tokens {
+		tokenStream.Tokens[i].Term = jaconv.ToHebon(jaconv.KatakanaToHiragana(token.Kana))
 	}
+	return tokenStream
+
 }
 
-func (f ReadingformFilter) Filter(tokenStream TokenStream) TokenStream {
-	// ローマ字に指定されていたらローマ字に変換する、それ以外ではカナに変換する
-	if f.charType == Romaji {
-		for i, token := range tokenStream.Tokens {
-			tokenStream.Tokens[i].Term = jaconv.ToHebon(jaconv.KatakanaToHiragana(token.Kana))
-		}
-		return tokenStream
-	}
+type KanaReadingformFilter struct{}
 
+func NewKanaReadingformFilter() KanaReadingformFilter {
+	return KanaReadingformFilter{}
+}
+
+func (f KanaReadingformFilter) Filter(tokenStream TokenStream) TokenStream {
 	// カナはTokenizerで既に変換されているのでTokenStreamの変数にセットする
 	for i := range tokenStream.Tokens {
 		tokenStream.Tokens[i].Term = tokenStream.Tokens[i].Kana
