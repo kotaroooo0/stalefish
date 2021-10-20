@@ -246,12 +246,12 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 		postings[i] = inverted[t.ID].Postings
 	}
 
-	var matchedDocumentIDs []DocumentID
+	var ids []DocumentID
 	for notAllNil(postings) {
 		if isSameDocumentId(postings) { // カーソルが指す全てのDocIDが等しい時
 			// フレーズが等しければ結果に追加
 			if isPhraseMatch(ps.tokenStream, postings) {
-				matchedDocumentIDs = append(matchedDocumentIDs, postings[0].DocumentID)
+				ids = append(ids, postings[0].DocumentID)
 			}
 			// カーソルを全て動かす
 			next(postings)
@@ -262,7 +262,7 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 		postings[idx] = postings[idx].Next
 	}
 
-	documents, err := ps.storage.GetDocuments(matchedDocumentIDs)
+	documents, err := ps.storage.GetDocuments(ids)
 	if err != nil {
 		return nil, err
 	}
@@ -286,9 +286,9 @@ func isPhraseMatch(tokenStream TokenStream, postings []*Postings) bool {
 	}
 
 	// 共通の要素が存在すればフレーズが存在するということになる
-	postitions := relativePositionsList[0]
+	positions := relativePositionsList[0]
 	for _, relativePositions := range relativePositionsList[1:] {
-		if !hasCommonElement(postitions, relativePositions) {
+		if !hasCommonElement(positions, relativePositions) {
 			return false
 		}
 	}

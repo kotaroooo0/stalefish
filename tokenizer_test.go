@@ -17,13 +17,15 @@ func TestMorphologicalTokenizerTokenize(t *testing.T) {
 	}{
 		{
 			text: "今日は天気が良い",
-			expected: NewTokenStream([]Token{
-				NewToken("今日", setKana("キョウ")),
-				NewToken("は", setKana("ハ")),
-				NewToken("天気", setKana("テンキ")),
-				NewToken("が", setKana("ガ")),
-				NewToken("良い", setKana("ヨイ")),
-			}),
+			expected: TokenStream{
+				Tokens: []Token{
+					{Term: "今日", Kana: "キョウ"},
+					{Term: "は", Kana: "ハ"},
+					{Term: "天気", Kana: "テンキ"},
+					{Term: "が", Kana: "ガ"},
+					{Term: "良い", Kana: "ヨイ"},
+				},
+			},
 		},
 	}
 

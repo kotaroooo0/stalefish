@@ -6,7 +6,6 @@ import (
 )
 
 // github.com/ikawaha/kagomeに直接依存しないようにラップする
-// 名前空間的にもtokenizerがバッティングして欲しくない
 type Kagome struct {
 	kagome *tokenizer.Tokenizer
 }
