@@ -54,9 +54,11 @@ func NewDocumentScore(doc Document, score float64) documentScore {
 
 type documentScores []documentScore
 
-func (ds documentScores) Len() int           { return len(ds) }
+func (ds documentScores) Len() int { return len(ds) }
+
 func (ds documentScores) Less(i, j int) bool { return ds[i].score < ds[j].score }
-func (ds documentScores) Swap(i, j int)      { ds[i], ds[j] = ds[j], ds[i] }
+
+func (ds documentScores) Swap(i, j int) { ds[i], ds[j] = ds[j], ds[i] }
 
 func (ds documentScores) toDocuments() []Document {
 	docs := make([]Document, len(ds))

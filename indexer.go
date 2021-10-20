@@ -1,29 +1,27 @@
 package stalefish
 
 type Indexer struct {
-	storage       Storage       // 永続化層
-	analyzer      Analyzer      // 文章分割のためのアナライザ
-	invertedIndex InvertedIndex // 転置インデックス(メモリ上)
+	storage            Storage       // 永続化層
+	analyzer           Analyzer      // 文章分割のためのアナライザ
+	invertedIndex      InvertedIndex // 転置インデックス(メモリ上)
+	indexSizeThreshold int           // メモリ上の転置インデックスサイズをストレージへマージする閾値
 }
 
-func NewIndexer(storage Storage, analyzer Analyzer) *Indexer {
+func NewIndexer(storage Storage, analyzer Analyzer, indexSizeThreshold int) *Indexer {
 	return &Indexer{
-		storage:       storage,
-		analyzer:      analyzer,
-		invertedIndex: make(InvertedIndex),
+		storage:            storage,
+		analyzer:           analyzer,
+		invertedIndex:      make(InvertedIndex),
+		indexSizeThreshold: indexSizeThreshold,
 	}
 }
 
-const INDEX_SIZE_THRESHOLD = 0
-
-// 1.ドキュメントからトークンを取り出す
-// 2.トークンごとにポスティングリストを作って、それをメモリ上の転置インデックスに追加する
-// 3.メモリ上の転置インデックスがある程度のサイズになったら、ストレージ上の転置インデックスにマージする
+// 転置インデックスにドキュメントを追加する
 func (i *Indexer) AddDocument(doc Document) error {
 	tokens := i.analyzer.Analyze(doc.Body)
 	doc.TokenCount = tokens.Size()
 
-	// ストレージにドキュメントを格納し、ドキュメントIDを取得
+	// ストレージにドキュメントを保存し、ストレージの採番によりドキュメントIDを取得
 	docID, err := i.storage.AddDocument(doc)
 	if err != nil {
 		return err
@@ -35,12 +33,13 @@ func (i *Indexer) AddDocument(doc Document) error {
 		return err
 	}
 
-	// メモリ上の転置インデックスのサイズが閾値以下であれば、処理終了
-	if len(i.invertedIndex) < INDEX_SIZE_THRESHOLD {
+	// メモリ上の転置インデックスのサイズが閾値未満であれば、処理終了
+	// 閾値以上であれば、メモリの転置インデックスとストレージの転置インデックスをマージ
+	if len(i.invertedIndex) < i.indexSizeThreshold {
 		return nil
 	}
 
-	// マージ元の転置リストをストレージから読み出す
+	// マージ元の転置リストをストレージからREAD
 	storageInvertedIndex, err := i.storage.GetInvertedIndexByTokenIDs(i.invertedIndex.TokenIDs())
 	if err != nil {
 		return err
@@ -50,6 +49,8 @@ func (i *Indexer) AddDocument(doc Document) error {
 	for tokenID, postingList := range i.invertedIndex {
 		i.invertedIndex[tokenID] = merge(postingList, storageInvertedIndex[tokenID])
 	}
+
+	// マージした転置インデックスをストレージで永続化
 	if err := i.storage.UpsertInvertedIndex(i.invertedIndex); err != nil {
 		return err
 	}
@@ -59,7 +60,7 @@ func (i *Indexer) AddDocument(doc Document) error {
 	return nil
 }
 
-// 文書からメモリ上の転置インデックスを更新する
+// ドキュメントからメモリ上の転置インデックスを更新する
 func (i *Indexer) updateMemoryInvertedIndexByDocument(docID DocumentID, tokens TokenStream) error {
 	for pos, token := range tokens.Tokens {
 		if err := i.updateMemoryPostingListByToken(docID, token, uint64(pos)); err != nil {
@@ -71,10 +72,12 @@ func (i *Indexer) updateMemoryInvertedIndexByDocument(docID DocumentID, tokens T
 
 // トークンからメモリ上の転置インデックスを更新する
 func (i *Indexer) updateMemoryPostingListByToken(docID DocumentID, token Token, pos uint64) error {
-	// ストレージにIDの管理を任せる
+	// トークンをストレージに保存しIDを採番
 	if err := i.storage.AddToken(NewToken(token.Term)); err != nil {
 		return err
 	}
+
+	// 採番済みのトークンをREAD
 	token, err := i.storage.GetTokenByTerm(token.Term)
 	if err != nil {
 		return err

@@ -11,17 +11,6 @@ const (
 	OR
 )
 
-func (l Logic) String() string {
-	switch l {
-	case AND:
-		return "AND"
-	case OR:
-		return "OR"
-	default:
-		return "Unknown"
-	}
-}
-
 type Searcher interface {
 	Search() ([]Document, error)
 }
@@ -31,7 +20,9 @@ type MatchAllSearcher struct {
 }
 
 func NewMatchAllSearcher(storage Storage) MatchAllSearcher {
-	return MatchAllSearcher{storage: storage}
+	return MatchAllSearcher{
+		storage: storage,
+	}
 }
 
 func (ms MatchAllSearcher) Search() ([]Document, error) {
@@ -55,50 +46,54 @@ func NewMatchSearcher(tokenStream TokenStream, logic Logic, storage Storage, sor
 }
 
 func (ms MatchSearcher) Search() ([]Document, error) {
-	// トークンストリームが空ならマッチするドキュメントなし
+	// tokenStreamが空なら、マッチするドキュメントなしでリターン
 	if ms.tokenStream.Size() == 0 {
 		return []Document{}, nil
 	}
 
-	// IDを取得するため
+	// トークンIDを取得するためにストレージをREAD
 	tokens, err := ms.storage.GetTokensByTerms(ms.tokenStream.Terms())
 	if err != nil {
 		return nil, err
 	}
 
-	// 対応トークンが一つも存在していない場合、結果は空
+	// 対応トークンが一つも存在しないなら、マッチするドキュメントなしでリターン
 	if len(tokens) == 0 {
 		return []Document{}, nil
 	}
 
-	// AND検索の場合、対応するトークンが全て存在していなかったら結果は空
+	// AND検索で対応するトークンが全て存在していなかったら、マッチするドキュメントなしでリターン
 	if ms.logic == AND && len(tokens) != len(ms.tokenStream.Terms()) {
 		return []Document{}, nil
 	}
 
-	// ストレージから転置リストを取得する
+	// ストレージから転置インデックスをREAD
 	inverted, err := ms.storage.GetInvertedIndexByTokenIDs(tokenIDs(tokens))
 	if err != nil {
 		return nil, err
 	}
 
-	// トークンごとのポスティングを取得
+	// ポスティングリストを抽出
 	postings := make([]*Postings, len(inverted))
 	for i, t := range tokens {
 		postings[i] = inverted[t.ID].Postings
 	}
 
-	// ポスティングリストを走査
+	// ポスティングリストを走査しマッチするドキュメントIDを取得
 	var matchedIds []DocumentID
 	if ms.logic == AND {
 		matchedIds = andMatch(postings)
 	} else if ms.logic == OR {
 		matchedIds = orMatch(postings)
 	}
+
+	// ドキュメントIDからドキュメントを取得
 	documents, err := ms.storage.GetDocuments(matchedIds)
 	if err != nil {
 		return nil, err
 	}
+
+	// sorterが指定されていればドキュメントをソートしてリターン
 	if ms.sorter == nil {
 		return documents, nil
 	}
@@ -143,7 +138,7 @@ func orMatch(postings []*Postings) []DocumentID {
 	return uniqueDocumentId(ids)
 }
 
-// 最小のドキュメントIDを持つポスティングリストのインデックス
+// ポスティングリストのスライスから最小のドキュメントIDを指しているポスティングリストのインデックス
 func minDocumentIDIndex(postings []*Postings) int {
 	min := 0
 	for i := 1; i < len(postings); i++ {
@@ -154,7 +149,7 @@ func minDocumentIDIndex(postings []*Postings) int {
 	return min
 }
 
-// スライスに含まれる全てのポスティングリストが指すキュメントIDが同じかどうか
+// スライスに含まれる全てのポスティングリストが指すドキュメントIDが同じかどうか
 func isSameDocumentId(postings []*Postings) bool {
 	for i := 0; i < len(postings)-1; i++ {
 		if postings[i].DocumentID != postings[i+1].DocumentID {
@@ -174,6 +169,7 @@ func notAllNil(postings []*Postings) bool {
 	return true
 }
 
+// 全てのポスティングリストを次のポスティングを指すようにする
 func next(postings []*Postings) {
 	for i := range postings {
 		postings[i] = postings[i].Next
@@ -190,6 +186,7 @@ func allNil(postings []*Postings) bool {
 	return true
 }
 
+// ドキュメントIDのスライスで重複を削除
 func uniqueDocumentId(ids []DocumentID) []DocumentID {
 	m := make(map[DocumentID]struct{})
 	for _, id := range ids {
@@ -218,34 +215,35 @@ func NewPhraseSearcher(tokenStream TokenStream, storage Storage, sorter Sorter) 
 }
 
 func (ps PhraseSearcher) Search() ([]Document, error) {
-	// トークンストリームが空ならマッチするドキュメントなし
+	// tokenStreamが空なら、マッチするドキュメントなしでリターン
 	if ps.tokenStream.Size() == 0 {
 		return []Document{}, nil
 	}
 
-	// IDを取得するため
+	// トークンIDを取得するためにストレージをREAD
 	tokens, err := ps.storage.GetTokensByTerms(ps.tokenStream.Terms())
 	if err != nil {
 		return nil, err
 	}
 
-	// 対応するトークンが全て存在していなかったら結果は空
+	// 対応トークンが一つも存在しないなら、マッチするドキュメントなしでリターン
 	if len(tokens) != len(ps.tokenStream.Terms()) {
 		return []Document{}, nil
 	}
 
-	// ストレージから転置リストを取得する
+	// ストレージから転置インデックスをREAD
 	inverted, err := ps.storage.GetInvertedIndexByTokenIDs(tokenIDs(tokens))
 	if err != nil {
 		return nil, err
 	}
 
-	// トークンごとのポスティングを取得
+	// ポスティングリストを抽出
 	postings := make([]*Postings, len(inverted))
 	for i, t := range tokens {
 		postings[i] = inverted[t.ID].Postings
 	}
 
+	// ポスティングリストを走査しマッチするドキュメントIDを取得
 	var ids []DocumentID
 	for notAllNil(postings) {
 		if isSameDocumentId(postings) { // カーソルが指す全てのDocIDが等しい時
@@ -262,40 +260,33 @@ func (ps PhraseSearcher) Search() ([]Document, error) {
 		postings[idx] = postings[idx].Next
 	}
 
+	// ドキュメントIDからドキュメントを取得
 	documents, err := ps.storage.GetDocuments(ids)
 	if err != nil {
 		return nil, err
 	}
+
+	// sorterが指定されていればドキュメントをソートしてリターン
 	if ps.sorter == nil {
 		return documents, nil
 	}
 	return ps.sorter.Sort(documents, inverted, tokens)
 }
 
-// [
-//	[5,9,20],
-//	[2,6,30],
-//	[7],
-// ]
-// が与えられて、相対ポジションに変換してintスライス間で共通する要素があるか判定する
+// フレーズを含むか判定
 func isPhraseMatch(tokenStream TokenStream, postings []*Postings) bool {
 	// 相対ポジションリストを作る
 	relativePositionsList := make([][]uint64, tokenStream.Size())
 	for i := 0; i < tokenStream.Size(); i++ {
-		relativePositionsList[i] = decrementUintSlice(postings[i].Positions, uint64(i))
+		relativePositionsList[i] = decremenSlice(postings[i].Positions, uint64(i))
 	}
 
-	// 共通の要素が存在すればフレーズが存在するということになる
-	positions := relativePositionsList[0]
-	for _, relativePositions := range relativePositionsList[1:] {
-		if !hasCommonElement(positions, relativePositions) {
-			return false
-		}
-	}
-	return true
+	// 共通の要素が存在すればフレーズが存在する
+	return hasCommon(relativePositionsList)
 }
 
-func decrementUintSlice(s []uint64, n uint64) []uint64 {
+// uint64スライスsの各要素をnだけデクリメント
+func decremenSlice(s []uint64, n uint64) []uint64 {
 	result := make([]uint64, len(s))
 	for i, e := range s {
 		result[i] = e - n
@@ -303,13 +294,21 @@ func decrementUintSlice(s []uint64, n uint64) []uint64 {
 	return result
 }
 
-func hasCommonElement(s1 []uint64, s2 []uint64) bool {
-	for _, v1 := range s1 {
-		for _, v2 := range s2 {
-			if v1 == v2 {
-				return true
+// 複数のスライスが共通の要素を持っているか判定
+func hasCommon(ss [][]uint64) bool {
+	s0 := ss[0]
+	for _, s1 := range ss[1:] {
+		hasCommon := false
+		for _, v1 := range s0 {
+			for _, v2 := range s1 {
+				if v1 == v2 {
+					hasCommon = true
+				}
 			}
 		}
+		if !hasCommon {
+			return false
+		}
 	}
-	return false
+	return true
 }

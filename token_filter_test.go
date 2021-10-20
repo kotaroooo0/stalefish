@@ -97,7 +97,7 @@ func TestKanaReadingformFilter_Filter(t *testing.T) {
 	}{
 		{
 			tokenStream: TokenStream{Tokens: []Token{{Term: "おっ早う！", Kana: "おはよう"}, {Term: "チョット！", Kana: "ちょっと"}}},
-			want:        TokenStream{Tokens: []Token{{Term: "おはよう", Kana: "おはよう"}, {Term: "おはよう", Kana: "ちょっと"}}},
+			want:        TokenStream{Tokens: []Token{{Term: "おはよう", Kana: "おはよう"}, {Term: "ちょっと", Kana: "ちょっと"}}},
 		},
 	}
 	for _, tt := range tests {
