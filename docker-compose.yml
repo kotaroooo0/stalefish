@@ -3,7 +3,6 @@ version: "3.6"
 services:
   rdb:
     image: mysql:5.7
-    restart: always
     volumes:
       - ./db/:/docker-entrypoint-initdb.d
     ports:
