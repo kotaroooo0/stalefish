@@ -238,7 +238,34 @@ func TestAddDocument(t *testing.T) {
 	}
 }
 
-func TestAddToken(t *testing.T) {
+func TestStorageRdbImpl_AddToken(t *testing.T) {
+	type fields struct {
+		DB *sqlx.DB
+	}
+	type args struct {
+		token Token
+	}
+	tests := []struct {
+		token   Token
+		want    TokenID
+		wantErr bool
+	}{
+		{
+			token:   NewToken("TestAddToken1"),
+			want:    1,
+			wantErr: false,
+		},
+		{
+			token:   NewToken("TestAddToken2"),
+			want:    2,
+			wantErr: false,
+		},
+		{
+			token:   NewToken("TestAddToken2"),
+			want:    0,
+			wantErr: true,
+		},
+	}
 	db, err := NewTestDBClient()
 	if err != nil {
 		t.Fatal(err)
@@ -246,29 +273,16 @@ func TestAddToken(t *testing.T) {
 	if err := truncateTableAll(db); err != nil {
 		t.Fatal(err)
 	}
-
-	cases := []struct {
-		token Token
-	}{
-		{
-			token: NewToken("TestAddToken1"),
-		},
-		{
-			token: NewToken("TestAddToken2"),
-		},
-		{
-			token: NewToken("TestAddToken3"),
-		},
-		{
-			token: NewToken("TestAddToken4"),
-		},
-	}
-
 	storage := NewStorageRdbImpl(db)
-	for _, tt := range cases {
+	for _, tt := range tests {
 		t.Run(fmt.Sprintf("token = %v", tt.token), func(t *testing.T) {
-			if err := storage.AddToken(tt.token); err != nil {
-				t.Fatal(err)
+			got, err := storage.AddToken(tt.token)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("StorageRdbImpl.AddToken() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("StorageRdbImpl.AddToken() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -291,19 +305,19 @@ func TestGetTokenByTerm(t *testing.T) {
 
 	cases := []struct {
 		term     string
-		expected Token
+		expected *Token
 	}{
 		{
 			term:     "term1",
-			expected: Token{ID: 1, Term: "term1"},
+			expected: &Token{ID: 1, Term: "term1"},
 		},
 		{
 			term:     "term2",
-			expected: Token{ID: 2, Term: "term2"},
+			expected: &Token{ID: 2, Term: "term2"},
 		},
 		{
 			term:     "term3",
-			expected: Token{},
+			expected: nil,
 		},
 	}
 
