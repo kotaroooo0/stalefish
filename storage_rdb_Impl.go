@@ -6,7 +6,6 @@ import (
 	"encoding/gob"
 	"fmt"
 
-	"github.com/go-sql-driver/mysql"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 )
@@ -104,36 +103,32 @@ func (s StorageRdbImpl) AddDocument(doc Document) (DocumentID, error) {
 	return DocumentID(insertedID), nil
 }
 
-func (s StorageRdbImpl) AddToken(token Token) error {
+func (s StorageRdbImpl) AddToken(token Token) (TokenID, error) {
 	res, err := s.DB.NamedExec(`insert into tokens (term) values (:term)`,
 		map[string]interface{}{
 			"term": token.Term,
 		},
 	)
 	if err != nil {
-		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
-			if mysqlErr.Number == 1062 {
-				return nil
-			}
-		}
-		return err
+		return 0, err
 	}
 
+	insertedID, err := res.LastInsertId()
 	if _, err := res.LastInsertId(); err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+	return TokenID(insertedID), nil
 }
 
-func (s StorageRdbImpl) GetTokenByTerm(term string) (Token, error) {
+func (s StorageRdbImpl) GetTokenByTerm(term string) (*Token, error) {
 	var token Token
 	if err := s.DB.Get(&token, `select * from tokens where term = ?`, term); err != nil {
-		if err != sql.ErrNoRows {
-			return Token{}, err
+		if err == sql.ErrNoRows {
+			return nil, nil
 		}
-		return Token{}, nil
+		return nil, err
 	}
-	return token, nil
+	return &token, nil
 }
 
 func (s StorageRdbImpl) GetTokensByTerms(terms []string) ([]Token, error) {
