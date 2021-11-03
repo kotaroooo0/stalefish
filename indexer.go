@@ -77,21 +77,21 @@ func (i *Indexer) updateMemoryPostingListByToken(docID DocumentID, token Token, 
 	if err != nil {
 		return err
 	}
-	var tokenId TokenID
+	var tokenID TokenID
 	if sToken == nil {
 		// トークンをストレージに保存しIDを採番
-		tokenId, err = i.storage.AddToken(NewToken(token.Term))
+		tokenID, err = i.storage.AddToken(NewToken(token.Term))
 		if err != nil {
 			return err
 		}
 	} else {
-		tokenId = sToken.ID
+		tokenID = sToken.ID
 	}
 
-	postingList, ok := i.invertedIndex[tokenId]
+	postingList, ok := i.invertedIndex[tokenID]
 	// メモリ上にトークンに対応するポスティングリストがない時
 	if !ok {
-		i.invertedIndex[tokenId] = PostingList{
+		i.invertedIndex[tokenID] = PostingList{
 			Postings: NewPostings(docID, []uint64{pos}, nil),
 		}
 		return nil
@@ -108,7 +108,7 @@ func (i *Indexer) updateMemoryPostingListByToken(docID DocumentID, token Token, 
 	// 既に対象ドキュメントのポスティングが存在する時
 	if p != nil {
 		p.Positions = append(p.Positions, pos)
-		i.invertedIndex[tokenId] = postingList
+		i.invertedIndex[tokenID] = postingList
 		return nil
 	}
 
@@ -117,7 +117,7 @@ func (i *Indexer) updateMemoryPostingListByToken(docID DocumentID, token Token, 
 	// 1の時
 	if docID < postingList.Postings.DocumentID {
 		postingList.Postings = NewPostings(docID, []uint64{pos}, postingList.Postings)
-		i.invertedIndex[tokenId] = postingList
+		i.invertedIndex[tokenID] = postingList
 		return nil
 	}
 	// 2の時
@@ -127,7 +127,7 @@ func (i *Indexer) updateMemoryPostingListByToken(docID DocumentID, token Token, 
 		t = t.Next
 	}
 	t.PushBack(NewPostings(docID, []uint64{pos}, nil))
-	i.invertedIndex[tokenId] = postingList
+	i.invertedIndex[tokenID] = postingList
 	return nil
 }
 
