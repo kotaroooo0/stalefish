@@ -25,7 +25,53 @@ $ docker-compose up
 $ make test
 ```
 
-## Example
+## Example1
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/kotaroooo0/stalefish"
+)
+
+func main() {
+	db, err := stalefish.NewDBClient(stalefish.NewDBConfig("root", "password", "127.0.0.1", "3306", "stalefish"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	storage := stalefish.NewStorageRdbImpl(db)
+	analyzer := stalefish.NewAnalyzer([]stalefish.CharFilter{}, stalefish.NewStandardTokenizer(), []stalefish.TokenFilter{stalefish.NewLowercaseFilter()})
+
+	indexer := stalefish.NewIndexer(storage, analyzer, 1)
+	for _, body := range []string{"Ruby PHP JS", "Go Ruby", "Ruby Go PHP", "Go PHP"} {
+		if err := indexer.AddDocument(stalefish.NewDocument(body)); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	sorter := stalefish.NewTfIdfSorter(storage)
+	mq := stalefish.NewMatchQuery("GO Ruby", stalefish.OR, analyzer, sorter)
+	mseacher := mq.Searcher(storage)
+	result, err := mseacher.Search()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(result) // [{2 Go Ruby 2} {3 Ruby Go PHP 3} {4 Go PHP 2} {1 Ruby PHP JS 3}]
+
+	pq := stalefish.NewPhraseQuery("go RUBY", analyzer, nil)
+	pseacher := pq.Searcher(storage)
+	result, err = pseacher.Search()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(result) // [{2 Go Ruby 2}
+}
+```
+
+## Example2
 
 ```go
 package main
@@ -36,39 +82,20 @@ import (
 	"github.com/kotaroooo0/stalefish"
 )
 
-// NOTE: Setup MySQL before execution!
 func main() {
-	// create index
-	config := stalefish.NewDBConfig("root", "password", "127.0.0.1", "3306", "stalefish")
-	db, _ := stalefish.NewDBClient(config) // omit error handling
-	storage := stalefish.NewStorageRdbImpl(db)
-	analyzer := stalefish.NewAnalyzer([]stalefish.CharFilter{}, stalefish.StandardTokenizer{}, []stalefish.TokenFilter{stalefish.StemmerFilter{}, stalefish.LowercaseFilter{}, stalefish.StopWordFilter{}})
-	indexer := stalefish.NewIndexer(storage, analyzer)
-
-	indexer.AddDocument(stalefish.NewDocument("You can watch lots of interesting dramas on Amazon Prime."))
-	indexer.AddDocument(stalefish.NewDocument("Forest phenomena in the Amazon are a prime concern."))
-	indexer.AddDocument(stalefish.NewDocument("I watched amazon prime until late at night yesterday."))
-	indexer.AddDocument(stalefish.NewDocument("Breaking Bad is a very jarring drama."))
-
-	// search documents
-	q := stalefish.NewPhraseQuery("amAzon PRime", analyzer) // Uppercase and lowercase notation fluctuation
-	seacher := q.Searcher(storage)
-	result, _ := seacher.Search() // omit error handling
-	fmt.Println(result)
-	// result: [{1 You can watch lots of interesting dramas on Amazon Prime.} {3 I watched amazon prime until late at night yesterday.}]
-
-	q = stalefish.NewPhraseQuery("drama", analyzer) // Singular and plural notation fluctuations
-	seacher = q.Searcher(storage)
-	result, _ = seacher.Search() // omit error handling
-	fmt.Println(result)
-	// result: [{1 You can watch lots of interesting dramas on Amazon Prime.} {4 Breaking Bad is a very jarring drama.}]
+	analyzer := stalefish.NewAnalyzer(
+		[]stalefish.CharFilter{stalefish.NewMappingCharFilter(map[string]string{":(": "sad"})},
+		stalefish.NewStandardTokenizer(),
+		[]stalefish.TokenFilter{stalefish.NewLowercaseFilter(), stalefish.NewStemmerFilter(), stalefish.NewStopWordFilter([]string{"i", "my", "me", "the", "a", "for"})},
+	)
+	fmt.Println(analyzer.Analyze("I feel TIRED :(")) // {[{0 feel } {0 tire } {0 sad }]}
 }
 ```
 
 ## Development Task
 
-- [ ] Scoring with TF/IDF
-- [ ] Sorting
+- [x] Scoring with TF/IDF
+- [x] Sorting
 - [ ] Setting document fields
 - [ ] Replacing MySQL with another DB
 - [ ] Preformance Tuning
