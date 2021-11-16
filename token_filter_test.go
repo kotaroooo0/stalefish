@@ -41,7 +41,7 @@ func TestStopWordFilter_Filter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("stopWords = %v, tokenStream = %v, want = %v", tt.stopWords, tt.tokenStream, tt.want), func(t *testing.T) {
 			f := StopWordFilter{
-				StopWords: tt.stopWords,
+				stopWords: tt.stopWords,
 			}
 			if got := f.Filter(tt.tokenStream); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("StopWordFilter.Filter() = %v, want %v", got, tt.want)
