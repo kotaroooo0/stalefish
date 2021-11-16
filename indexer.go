@@ -3,7 +3,7 @@ package stalefish
 type Indexer struct {
 	storage            Storage       // 永続化層
 	analyzer           Analyzer      // 文章分割のためのアナライザ
-	invertedIndex      InvertedIndex // 転置インデックス(メモリ上)
+	invertedIndex      InvertedIndex // メモリ上の転置インデックス
 	indexSizeThreshold int           // メモリ上の転置インデックスサイズをストレージへマージする閾値
 }
 
@@ -45,7 +45,7 @@ func (i *Indexer) AddDocument(doc Document) error {
 		return err
 	}
 
-	// メモリ上の転置インデックスとストレージ上の転置インデックスをマージする
+	// メモリ上の転置インデックスとストレージ上の転置インデックスをマージ
 	for tokenID, postingList := range i.invertedIndex {
 		i.invertedIndex[tokenID] = merge(postingList, storageInvertedIndex[tokenID])
 	}

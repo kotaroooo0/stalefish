@@ -3,7 +3,7 @@ package stalefish
 import "sort"
 
 // 転置インデックス
-// TokenIDー>転置リストのマップ
+// TokenIDー>ポスティングリストのマップ
 type InvertedIndex map[TokenID]PostingList
 
 func NewInvertedIndex(m map[TokenID]PostingList) InvertedIndex {
@@ -19,9 +19,9 @@ func (ii InvertedIndex) TokenIDs() []TokenID {
 	return ids
 }
 
-// 転置リスト
+// ポスティングリスト
 type PostingList struct {
-	Postings *Postings // トークンを含むポスティングスリスト
+	Postings *Postings // トークンごとのポスティングリスト
 }
 
 func NewPostingList(pl *Postings) PostingList {
@@ -32,9 +32,9 @@ func NewPostingList(pl *Postings) PostingList {
 
 func (p PostingList) Size() int {
 	size := 0
-	ps := p.Postings
-	for ps != nil {
-		ps = ps.Next
+	pp := p.Postings
+	for pp != nil {
+		pp = pp.Next
 		size++
 	}
 	return size
@@ -42,21 +42,21 @@ func (p PostingList) Size() int {
 
 func (p PostingList) AppearanceCountInDocument(docID DocumentID) int {
 	count := 0
-	ps := p.Postings
-	for ps != nil {
-		if ps.DocumentID == docID {
-			count = len(ps.Positions)
+	pp := p.Postings
+	for pp != nil {
+		if pp.DocumentID == docID {
+			count = len(pp.Positions)
 			break
 		}
-		ps = ps.Next
+		pp = pp.Next
 	}
 	return count
 }
 
-// ポスティング(文書IDのリンクリスト)
+// ポスティング（ドキュメントID等を含むリンクリスト）
 type Postings struct {
-	DocumentID DocumentID // 文書のID
-	Positions  []uint64   // 文書中の位置情報
+	DocumentID DocumentID // ドキュメントのID
+	Positions  []uint64   // ドキュメント中での位置情報
 	Next       *Postings  // 次のポスティングへのポインタ
 }
 
