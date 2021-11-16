@@ -27,18 +27,18 @@ func (f LowercaseFilter) Filter(tokenStream TokenStream) TokenStream {
 }
 
 type StopWordFilter struct {
-	StopWords []string
+	stopWords []string
 }
 
 func NewStopWordFilter(stopWords []string) StopWordFilter {
 	return StopWordFilter{
-		StopWords: stopWords,
+		stopWords: stopWords,
 	}
 }
 
 func (f StopWordFilter) Filter(tokenStream TokenStream) TokenStream {
 	stopwords := make(map[string]struct{})
-	for _, w := range f.StopWords {
+	for _, w := range f.stopWords {
 		stopwords[w] = struct{}{}
 	}
 	r := make([]Token, 0, tokenStream.Size())
