@@ -114,7 +114,7 @@ func (s StorageRdbImpl) AddToken(token Token) (TokenID, error) {
 	}
 
 	insertedID, err := res.LastInsertId()
-	if _, err := res.LastInsertId(); err != nil {
+	if err != nil {
 		return 0, err
 	}
 	return TokenID(insertedID), nil
